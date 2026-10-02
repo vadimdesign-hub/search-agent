@@ -221,6 +221,10 @@
   .fopt .fcount { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
   .fopt:hover .fname { color: var(--accent); }
   .fopt.zero { opacity: .45; }
+  .fopt.locked { cursor: default; }
+  .fopt.locked.only { opacity: 1; }
+  .fopt.locked input { cursor: default; }
+  .fopt.locked:hover .fname { color: inherit; }
   .fmore { font-size: 13px; margin-top: 4px; }
   .fmore[hidden] { display: none; }
   .active { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -676,8 +680,9 @@ function renderFacets(r) {
       const q = (facetQuery[f.key] || "").trim().toLowerCase();
       const items = f.values.map((v, k) => {
         const hide = q ? !v.value.toLowerCase().includes(q) : (!all && k >= FACET_SHOW && !v.selected);
-        return `<li${hide ? " hidden" : ""} data-v="${esc(v.value.toLowerCase())}"><label class="fopt${v.count ? "" : " zero"}">
-          <input type="checkbox" data-k="${esc(f.key)}" value="${esc(v.value)}" ${v.selected ? "checked" : ""}>
+        const tip = v.only ? ` title="У всех найденных объектов цвет — «${esc(v.value)}»"` : v.locked ? ` title="Среди найденных таких нет"` : "";
+        return `<li${hide ? " hidden" : ""} data-v="${esc(v.value.toLowerCase())}"><label class="fopt${v.count ? "" : " zero"}${v.locked ? " locked" : ""}${v.only ? " only" : ""}"${tip}>
+          <input type="checkbox" data-k="${esc(f.key)}" value="${esc(v.value)}" ${v.selected || v.only ? "checked" : ""} ${v.locked ? "disabled" : ""}>
           <span class="fname" title="${esc(v.value)}">${f.key === "fill" ? `<i class="sw" style="background:${esc(v.value)}"></i>` : ""}${esc(v.value)}</span><span class="fcount">${num(v.count)}</span></label></li>`;
       }).join("");
       const more = f.values.length > FACET_SHOW
@@ -877,6 +882,7 @@ function passes(it, skip) {
   return true;
 }
 const natural = (a, b) => a.localeCompare(b, "ru", { numeric: true, sensitivity: "base" });
+const SRC_ORDER = ["Стиль", "Переменная", "Вручную"];
 function computeFacets(items) {
   const values = new Map();  // ключ → множество всех значений
   for (const it of items) for (const [k, v] of Object.entries(facetValues(it))) {
@@ -895,6 +901,26 @@ function computeFacets(items) {
     // Значения с нулём результатов не показываем (кроме выбранных — чтобы их можно было снять);
     // если выбирать не из чего (осталось одно значение или ни одного) — фильтр скрываем целиком.
     const byCount = (a, b) => (counts.get(b) || 0) - (counts.get(a) || 0) || natural(a, b);  // цвета — частые сверху
+    if (key === "src") {
+      // Источник цвета — всегда все три варианта: видно, что, например, всё задано переменной,
+      // а стилем и вручную — ничего (у них 0, и выбрать их нельзя). Если источник у всех найденных
+      // один, он отмечен и снять отметку нельзя — выбирать не из чего.
+      const vals = SRC_ORDER.map((v) => ({ value: v, count: counts.get(v) || 0, selected: selected.has(v) }));
+      const nonzero = vals.filter((v) => v.count);
+      // Выбор единственного источника ничего не отсекает — это не фильтр: снимаем его
+      // (без плашки над результатами и счётчика в заголовке блока).
+      if (nonzero.length === 1 && selected.size === 1 && selected.has(nonzero[0].value)) {
+        delete activeFilters.src;
+        selected.clear();
+        nonzero[0].selected = false;
+      }
+      for (const v of vals) {
+        if (!v.count && !v.selected) v.locked = true;
+        if (nonzero.length === 1 && v === nonzero[0] && !selected.size) { v.locked = true; v.only = true; }
+      }
+      out.push({ key, title: facetTitle(key), values: vals });
+      continue;
+    }
     const vals = [...new Set([...values.get(key), ...selected])]
       .filter((v) => (counts.get(v) || 0) > 0 || selected.has(v))
       .sort(key === "group" ? byOrder : key === "fill" ? byCount : natural);
@@ -908,7 +934,9 @@ function renderTabs(byFile, all) {
   if (!found || found.files.length < 2) { $("ftabs").innerHTML = ""; return; }
   const tab = (key, name, total) => `<button type="button" role="tab" class="ftab${(currentFile || "") === key ? " on" : ""}${total ? "" : " zero"}"
       aria-selected="${(currentFile || "") === key}" data-file="${esc(key)}">${esc(name)} <span>${num(total)}</span></button>`;
-  const files = [...found.files].sort((a, b) => (byFile.get(b.id) || 0) - (byFile.get(a.id) || 0) || natural(a.name, b.name));
+  // Макеты без результатов не показываем — кроме выбранного сейчас, чтобы было видно, где вы
+  const files = [...found.files].filter((f) => byFile.get(f.id) || f.id === currentFile)
+    .sort((a, b) => (byFile.get(b.id) || 0) - (byFile.get(a.id) || 0) || natural(a.name, b.name));
   $("ftabs").innerHTML = tab("", "Все макеты", all) + files.map((f) => tab(f.id, f.name, byFile.get(f.id) || 0)).join("");
   document.querySelectorAll(".ftab").forEach((b) => b.addEventListener("click", () => {
     currentFile = b.dataset.file || null;
