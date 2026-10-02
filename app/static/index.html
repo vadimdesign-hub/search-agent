@@ -313,10 +313,10 @@
   .pick:hover, .pick[aria-expanded=true] { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--focus); }
   .pick i.empty { background: conic-gradient(from 90deg, #f44, #fd3, #4d6, #3cf, #66f, #e4e, #f44); opacity: .85; }
   /* Пикер цвета: квадрат насыщенность/яркость, ползунок оттенка, пипетка, HEX и отклонение */
-  .cpop { position: fixed; z-index: 50; width: 272px; padding: 14px; background: var(--surface); border: 1px solid var(--line);
+  .cpop { position: fixed; z-index: 50; width: 272px; padding: 14px; overflow-y: auto; overscroll-behavior: contain; background: var(--surface); border: 1px solid var(--line);
           border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18); }
   .cpop[hidden] { display: none; }
-  .sv { position: relative; height: 168px; border-radius: 10px; cursor: crosshair; touch-action: none;
+  .sv { position: relative; height: 128px; border-radius: 10px; cursor: crosshair; touch-action: none;
         background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), var(--hue, #f00); }
   .sv i { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff;
           box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.2); pointer-events: none; }
@@ -340,12 +340,12 @@
   .cpop .alpha::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
   .cpop .alpha.any::-webkit-slider-thumb { background: var(--surface-2); }
   .cp-row .sw.chk, .pick { background-color: transparent; }
-  .cp-tol { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; font-size: 13.5px; }
+  .cp-tol { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; font-size: 13.5px; }
   .cp-tol label { margin: 0; font-weight: 600; }
-  .cp-hint { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .cp-hint { margin: 6px 0 0; font-size: 12px; color: var(--muted); line-height: 1.4; letter-spacing: -.01em; }
   .cp-range { display: flex; gap: 3px; margin-top: 8px; }
   .cp-range i { flex: 1; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.08); }
-  .cp-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
+  .cp-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; }
   .cp-actions .primary { padding: 8px 16px; font-size: 14px; }
   .size.color.bad input[type=text] { border-color: var(--err); }
   .sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: 0 0 auto;
@@ -431,7 +431,6 @@
     <div class="cp-tol"><label for="tol">Отклонение</label><b id="tolVal">0%</b></div>
     <input type="range" id="tol" min="0" max="50" step="1" value="0">
     <div class="cp-range" id="cpRange" title="Примеры цветов на границе отклонения"></div>
-    <p class="cp-hint" id="tolHint"></p>
     <div class="cp-actions"><button type="button" class="ghost" id="cpReset">Сбросить</button><button type="button" class="primary" id="cpApply">Применить</button></div>
   </div>
 
@@ -1251,11 +1250,13 @@ function paintPicker(skipHex) {
   $("alpha").style.setProperty("--alpha-bg", `linear-gradient(to right, #${hex}00, #${hex}), ${CHECKER}`);
   $("alpha").classList.toggle("any", alpha == null);
   $("alphaVal").textContent = alpha == null ? "Любая" : alpha + "%";
-  $("alphaHint").textContent = alpha == null ? "Прозрачность цвета не важна. Сдвиньте ползунок, чтобы искать только с нужной."
-    : `Как opacity в Figma: 100% — непрозрачный. Найдутся цвета с прозрачностью ${Math.max(0, alpha - 2)}–${Math.min(100, alpha + 2)}%.`;
+  $("alphaHint").textContent = alpha == null ? "Любая прозрачность цвета."
+    : `Найдутся цвета с прозрачностью ${Math.max(0, alpha - 2)}–${Math.min(100, alpha + 2)}%.`;
+  $("alphaVal").title = alpha == null ? "Прозрачность цвета не важна"
+    : `Как opacity в Figma (100% — непрозрачный). Найдутся цвета с прозрачностью ${Math.max(0, alpha - 2)}–${Math.min(100, alpha + 2)}%`;
   const t = +$("tol").value;
   $("tolVal").textContent = t ? `±${t}%` : "0%";
-  $("tolHint").textContent = !t ? "Только точно этот цвет."
+  $("tolVal").title = !t ? "Только точно этот цвет."
     : t <= 5 ? "Почти тот же цвет: незаметные на глаз отличия."
     : t <= 15 ? "Близкие оттенки: чуть светлее, темнее или насыщеннее."
     : t <= 30 ? "Заметно разные оттенки того же цвета."
@@ -1263,6 +1264,7 @@ function paintPicker(skipHex) {
   // Полоска примеров: цвета ровно на границе отклонения (светлее/темнее, теплее/холоднее)
   const L = hexToLab(hex);
   const dirs = [[-1, 0, 0], [0, -1, 0], [0, 0, -1], null, [0, 0, 1], [0, 1, 0], [1, 0, 0]];
+  requestAnimationFrame(placePicker);  // высота пикера могла измениться (полоска примеров)
   $("cpRange").innerHTML = t ? dirs.map((d) => `<i style="background:#${d ? labToHex(L.map((v, k) => v + d[k] * t)) : hex}"></i>`).join("") : "";
 }
 function openPicker() {
@@ -1277,9 +1279,22 @@ function openPicker() {
 }
 function placePicker() {
   if ($("cpop").hidden) return;
-  const r = $("cbox").getBoundingClientRect(), w = $("cpop").offsetWidth, h = $("cpop").offsetHeight;
-  $("cpop").style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
-  $("cpop").style.top = (r.bottom + 8 + h > innerHeight && r.top - h - 8 > 0 ? r.top - h - 8 : r.bottom + 8) + "px";
+  const pop = $("cpop"), r = $("cbox").getBoundingClientRect();
+  pop.style.maxHeight = "";
+  const w = pop.offsetWidth, h = pop.offsetHeight;
+  pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  const below = innerHeight - r.bottom - 16;
+  if (h <= below) {  // под полем, выровнен по его правому краю
+    pop.style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+    pop.style.top = r.bottom + 8 + "px";
+    return;
+  }
+  // Снизу не помещается — сбоку от поля (слева, если там есть место), сдвинут по высоте так,
+  // чтобы был виден целиком; совсем низкое окно — прокрутка внутри пикера.
+  const side = r.left - w - 12 >= 8 ? r.left - w - 12 : Math.max(8, Math.min(r.right - w, innerWidth - w - 8));
+  pop.style.left = side + "px";
+  pop.style.maxHeight = innerHeight - 16 + "px";
+  pop.style.top = Math.max(8, Math.min(r.top, innerHeight - Math.min(h, innerHeight - 16) - 8)) + "px";
 }
 function closePicker() {
   $("cpop").hidden = true;
