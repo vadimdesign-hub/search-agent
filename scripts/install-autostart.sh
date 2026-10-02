@@ -4,7 +4,7 @@
 # Удаление: scripts/uninstall-autostart.sh
 set -e
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-LABEL="xyz.playstate.search-agent"
+LABEL="com.vadimdesign.search-agent"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
 PY="$ROOT/.venv/bin/python"
 
