@@ -1,0 +1,21 @@
+{
+  "name": "Search Agent — поиск без скачивания",
+  "id": "search-agent-search-local",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "documentAccess": "dynamic-page",
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ],
+    "devAllowedDomains": [
+      "http://127.0.0.1:8002",
+      "http://localhost:8002"
+    ],
+    "reasoning": "Плагин получает от локального сервера Search Agent запросы поиска и выделения и возвращает результат."
+  }
+}

@@ -1,0 +1,55 @@
+<style>
+  body { font: 12px/1.45 Inter, -apple-system, sans-serif; margin: 12px; color: var(--figma-color-text); background: var(--figma-color-bg); }
+  .row { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9463d; }
+  .on .dot { background: #5d7d62; }
+  p { color: var(--figma-color-text-secondary); margin: 8px 0 0; }
+</style>
+<div class="row" id="state"><span class="dot"></span><span id="title">Подключение к Search Agent…</span></div>
+<p>Вариант 2: поиск выполняется здесь, в Figma, без скачивания файла. Откройте страницу <b>localhost:8000/plugin</b> и не закрывайте это окно (можно свернуть).</p>
+<p id="last"></p>
+<script>
+  // Отдельный порт для плагинов: он не запускает сервер, если страница поиска закрыта.
+  const SERVERS = ["http://127.0.0.1:8002", "http://localhost:8002"];
+  let base = SERVERS[0];
+  let after = -1;      // -1: первый опрос — старые задачи не выполняем
+  let busy = false;
+
+  function setOnline(ok) {
+    document.getElementById("state").className = "row" + (ok ? " on" : "");
+    document.getElementById("title").textContent = ok ? "Подключено к Search Agent" : "Ждём: откройте страницу поиска";
+  }
+
+  async function poll() {
+    try {
+      const d = await (await fetch(base + "/api/p2/poll?after=" + after)).json();
+      setOnline(true);
+      if (after < 0) after = d.seq;
+      for (const task of d.tasks) {
+        if (task.seq <= after) continue;
+        after = task.seq;
+        document.getElementById("last").textContent = task.type === "search" ? `Ищу «${task.payload.name}»…` : "Выделяю…";
+        parent.postMessage({ pluginMessage: { type: "task", task } }, "*");
+      }
+    } catch {
+      setOnline(false);
+      base = base === SERVERS[0] ? SERVERS[1] : SERVERS[0];
+    }
+    setTimeout(poll, 300);
+  }
+
+  onmessage = (e) => {
+    const m = e.data.pluginMessage;
+    if (!m || m.type !== "result") return;
+    const d = m.data || {};
+    document.getElementById("last").textContent = m.kind === "search"
+      ? (m.ok ? `Поиск: ${d.status === "ok" ? "найдено " + d.count : d.status === "ambiguous" ? "нужно выбрать компонент" : "не найдено"}` : m.message)
+      : m.message;
+    fetch(base + "/api/p2/result", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seq: m.seq, ok: m.ok, data: m.data || null, message: m.message || "" }),
+    }).catch(() => {});
+  };
+
+  poll();
+</script>

@@ -1,0 +1,49 @@
+<style>
+  body { font: 12px/1.45 Inter, -apple-system, sans-serif; margin: 12px; color: var(--figma-color-text); background: var(--figma-color-bg); }
+  .row { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9463d; }
+  .on .dot { background: #5d7d62; }
+  p { color: var(--figma-color-text-secondary); margin: 8px 0 0; }
+</style>
+<div class="row" id="state"><span class="dot"></span><span id="title">Подключение к Search Agent…</span></div>
+<p id="hint">Не закрывайте это окно: пока плагин запущен, кнопка «Выделить» и ссылка «Открыть в Figma» на странице поиска выделяют объект здесь.</p>
+<p id="last"></p>
+<script>
+  // Отдельный порт для плагинов: он не запускает сервер, если страница поиска закрыта.
+  const SERVERS = ["http://127.0.0.1:8002", "http://localhost:8002"];
+  let base = SERVERS[0];
+  let after = null; // запросы, созданные до запуска плагина, не выполняем
+
+  function setOnline(ok) {
+    document.getElementById("state").className = "row" + (ok ? " on" : "");
+    document.getElementById("title").textContent = ok ? "Подключено к Search Agent" : "Ждём: откройте страницу поиска";
+  }
+
+  async function poll() {
+    try {
+      const d = await (await fetch(base + "/api/figma/poll")).json();
+      setOnline(true);
+      if (after === null) after = d.seq;
+      else if (d.request && d.seq > after) {
+        after = d.seq;
+        parent.postMessage({ pluginMessage: { type: "select", seq: d.seq, nodeIds: d.request.node_ids } }, "*");
+      }
+    } catch {
+      setOnline(false);
+      base = base === SERVERS[0] ? SERVERS[1] : SERVERS[0];
+    }
+    setTimeout(poll, 600);
+  }
+
+  onmessage = (e) => {
+    const m = e.data.pluginMessage;
+    if (!m || m.type !== "result") return;
+    document.getElementById("last").textContent = m.message;
+    fetch(base + "/api/figma/result", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ seq: m.seq, ok: m.ok, message: m.message }),
+    }).catch(() => {});
+  };
+
+  poll();
+</script>

@@ -1,0 +1,834 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Настройки макетов</title>
+<style>
+  /* Место под полосу прокрутки есть всегда — при переходе между страницами вёрстка не сдвигается. */
+  html { scrollbar-gutter: stable; }
+  :root {
+    --bg: #f5f5f0; --surface: #ffffff; --surface-2: #eef1ea; --text: #1f2620; --muted: #6e746c;
+    --faint: #9aa097; --line: #e2e4dc; --accent: #2f4a36; --accent-soft: #5d7d62; --accent-bg: #e7ede4;
+    --accent-text: #ffffff; --warn: #8a5a12; --warn-bg: #f7efdf; --err: #9c2f2b; --err-bg: #f7e6e3;
+    --focus: rgba(47, 74, 54, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141714; --surface: #1c201c; --surface-2: #222822; --text: #e8ebe5; --muted: #a0a79d;
+      --faint: #767d73; --line: #2e342e; --accent: #9cc3a2; --accent-soft: #7fa585; --accent-bg: #223027;
+      --accent-text: #122016; --warn: #e8c07c; --warn-bg: #33291a; --err: #f0a39c; --err-bg: #3a1f1d;
+      --focus: rgba(156, 195, 162, .22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1120px; margin: 0 auto; padding: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+          display: grid; place-items: center; font-size: 18px; }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); }
+  .live.down .dot { background: var(--err); }
+  :root { --blue: #2f6fe4; --blue-bg: #e8f0fe; --green: #1f8a4c; }
+  @media (prefers-color-scheme: dark) { :root { --blue: #7aa7ff; --blue-bg: #1c2a44; --green: #6fd39a; } }
+  .live.checking .dot { background: var(--faint); }
+  .live.up .dot { box-shadow: 0 0 0 3px var(--accent-bg); }
+  #live.down { color: var(--err); }
+  .variants { display: flex; gap: 4px; margin-left: 12px; font-size: 13px; font-weight: 600; }
+  .variants a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  .variants a.on { background: var(--surface-2); color: var(--accent); }
+  .lives { display: flex; gap: 20px; align-items: center; }
+  #plugin.down .dot { background: var(--faint); }
+  .actions { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+  .ghost { padding: 7px 14px; background: var(--surface); color: var(--accent); border: 1px solid var(--line); font-size: 14px; }
+  .ghost:hover { border-color: var(--accent-soft); }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .head .count { margin: 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: min(560px, calc(100% - 32px));
+           background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 12px; font-size: 14px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 10; }
+  .toast.err { background: var(--err); color: #fff; }
+  .toast[hidden] { display: none; }
+  ol.steps { margin: 8px 0 0; padding-left: 20px; }
+  ol.steps li + li { margin-top: 4px; }
+  @media (max-width: 560px) { .live span:last-child { display: none; } .lives { gap: 10px; } }
+
+  main { max-width: 800px; margin: 0 auto; padding: 32px 16px 80px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-soft); margin: 0 0 12px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; }
+  .lead { color: var(--muted); font-size: 17px; margin: 0 0 32px; max-width: 560px; }
+  /* Заголовок и пояснение — по центру, как на главной */
+  main > .eyebrow, main > h1 { text-align: center; }
+  main > .lead { text-align: center; font-size: 15px; max-width: 720px; margin: 0 auto 28px; text-wrap: balance; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .field + .field { margin-top: 20px; }
+  input[type=text], input[type=password] {
+    width: 100%; min-width: 0; padding: 12px 14px; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; transition: border-color .15s, box-shadow .15s; }
+  input:focus { outline: none; border-color: var(--accent-soft); box-shadow: 0 0 0 4px var(--focus); }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .row { display: flex; gap: 12px; }
+  .row input { flex: 1; }
+  @media (max-width: 560px) { .row { flex-direction: column; } }
+
+  button { font: inherit; font-weight: 600; border-radius: 10px; cursor: pointer; border: 0; }
+  .primary { padding: 12px 22px; background: var(--accent); color: var(--accent-text); white-space: nowrap; transition: opacity .15s; }
+  .primary:disabled { opacity: .45; cursor: default; }
+  .link { background: none; padding: 0; color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .check label { margin: 0; font-weight: 400; font-size: 13px; }
+  .check input { accent-color: var(--accent); }
+
+  .block { margin-top: 16px; border-radius: 16px; padding: 20px 24px; background: var(--surface-2); border: 1px solid var(--line); }
+  .block.err { background: var(--err-bg); color: var(--err); border-color: transparent; }
+  .block.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .block.ok { background: var(--accent-bg); border-color: transparent; }
+  .block b { font-weight: 600; }
+  .progress { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 14px 0 12px; }
+  .progress i { display: block; height: 100%; width: 32%; border-radius: 4px; background: var(--accent-soft);
+                animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+  .timing { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .timing b { color: var(--text); font-weight: 600; }
+  .block.err .timing, .block.warn .timing { border-top-color: currentColor; opacity: .85; color: inherit; }
+  .block.err .timing b, .block.warn .timing b { color: inherit; }
+  .sub { color: var(--muted); font-size: 13px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+
+  .results { margin-top: 32px; }
+  .count { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px; }
+  ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .item { padding: 16px 20px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item .body { min-width: 0; }
+  .name { font-weight: 600; word-break: break-word; }
+  .path { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-word; }
+  .id { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 6px; }
+  .tags { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; vertical-align: 1px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .tag.hidden { background: var(--warn-bg); color: var(--warn); }
+  .open { white-space: nowrap; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--accent); }
+  .open:hover { text-decoration: underline; }
+  .cand { cursor: pointer; transition: background .15s; }
+  .cand:hover { background: var(--surface-2); }
+  @media (max-width: 560px) { .item { flex-direction: column; gap: 8px; } }
+
+  details.conn { margin-top: 32px; }
+  details.conn summary { cursor: pointer; font-size: 14px; color: var(--muted); list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.conn summary::-webkit-details-marker { display: none; }
+  details.conn summary::before { content: "▸"; font-size: 14px; line-height: 1; transition: transform .15s; }
+  details.conn[open] summary::before { transform: rotate(90deg); }
+  details.conn .card { margin-top: 12px; }
+  #settingsMsg:empty { display: none; }
+  #settingsMsg.err { color: var(--err); }
+  .links { list-style: none; margin: 16px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .links:empty { display: none; }
+  .link-row { display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: var(--surface); }
+  .link-row + .link-row { border-top: 1px solid var(--line); }
+  .link-row .body { min-width: 0; flex: 1; }
+  .link-row .title { font-weight: 600; }
+  .link-row .url { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 2px;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .link-row .meta { color: var(--muted); font-size: 13px; }
+  .link-row.new { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: var(--accent-bg); } to { background: var(--surface); } }
+  .icon-btn { background: none; border: 0; color: var(--faint); font-size: 18px; line-height: 1; padding: 6px 8px; border-radius: 8px; }
+  .icon-btn:hover { color: var(--err); background: var(--err-bg); }
+  .paste { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .paste .preview { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .paste[hidden] { display: none; }
+  .empty { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+  @media (max-width: 560px) { .card-head { flex-wrap: wrap; } .card-head .paste { flex-basis: 100%; } }
+  .btn-check { display: inline-flex; align-items: center; gap: 8px; padding: 9px 14px; background: var(--surface); color: var(--accent);
+               border: 1px solid var(--line); font-size: 14px; margin-left: auto; white-space: nowrap; }
+  .btn-check:hover { border-color: var(--accent-soft); }
+  .btn-check:disabled { opacity: .6; cursor: default; }
+  /* «Проверить обновления» ↔ «Остановить»: пока идут загрузки, кнопка останавливает очередь */
+  .btn-check.stop { color: var(--err); border-color: color-mix(in srgb, var(--err) 35%, var(--line)); }
+  .btn-check.stop:hover { background: var(--err-bg); border-color: var(--err); }
+  .btn-check.stopping { color: var(--muted); }
+  .reload-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13.5px; color: var(--muted); }
+  .reload-row[hidden] { display: none; }
+  .reload-row b { color: var(--text); }
+  .reload-row .btn-check { padding: 7px 12px; font-size: 13.5px; }
+  .nocolor { color: var(--muted); }
+  .btn-check svg, .act svg { width: 18px; height: 18px; }
+  .act { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 10px; border: 1px solid var(--line);
+         background: var(--surface); color: var(--accent); flex-shrink: 0; }
+  .act:hover { border-color: var(--accent-soft); }
+  .act.upd { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .act.ok { color: var(--faint); }
+  .act:disabled { cursor: default; }
+  .state { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .state.err { color: var(--err); }
+  .state.upd { color: var(--blue); font-weight: 600; }
+  .state .pbar { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin-top: 6px; max-width: 420px; }
+  .state .pbar i { display: block; height: 100%; background: var(--accent-soft); border-radius: 4px; transition: width .4s; }
+  .state .pbar.indet i { width: 32%; animation: slide 1.4s ease-in-out infinite; }
+  .spin { animation: rot 1s linear infinite; }
+  @keyframes rot { to { transform: rotate(360deg); } }
+  .exact { display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 13px; font-weight: 400; color: var(--muted); cursor: pointer; white-space: nowrap; }
+  .exact input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; }
+  @media (max-width: 560px) { .exact span { display: none; } }
+  .modal { position: fixed; inset: 0; background: rgba(20, 24, 20, .38); display: grid; place-items: center; padding: 16px; z-index: 20; }
+  .modal[hidden] { display: none; }
+  .modal-box { background: var(--surface); border-radius: 16px; padding: 24px; max-width: 440px; width: 100%;
+               box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  .modal-box h3 { margin: 0 0 10px; font-size: 18px; letter-spacing: -.01em; }
+  .modal-box p { margin: 0; color: var(--muted); font-size: 14px; }
+  .modal-box p b { color: var(--text); }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+  .modal-actions button { padding: 10px 18px; font-size: 15px; }
+  .danger { background: var(--err); color: #fff; }
+  #links .link-row.compact { padding: 8px 12px 8px 16px; gap: 10px; }
+  #links .link-row.compact .title { font-size: 15px; }
+  #links .link-row.compact .state { margin-top: 1px; font-size: 12.5px; }
+  #links .act { width: 32px; height: 32px; border-radius: 8px; }
+  #links .act svg { width: 16px; height: 16px; }
+  #links .act.done { border-color: transparent; background: none; color: var(--green); cursor: default; }
+  #links .act.done svg { width: 20px; height: 20px; }
+  #links .has-tip.unloaded { color: var(--err); text-decoration-color: var(--err); }
+  .trash svg { width: 17px; height: 17px; display: block; }
+  #links .open { font-size: 13px; }
+  .has-tip { cursor: help; text-decoration: underline dotted var(--faint); text-underline-offset: 3px; outline: none; }
+  .has-tip:hover, .has-tip:focus-visible { text-decoration-color: var(--accent); }
+  .tip { position: fixed; z-index: 30; max-width: 340px; background: var(--surface); color: var(--text); border: 1px solid var(--line);
+         border-radius: 12px; padding: 12px 14px; font-size: 13px; box-shadow: 0 12px 32px rgba(0,0,0,.14); pointer-events: none; }
+  .tip[hidden] { display: none; }
+  .tip-title { font-weight: 700; margin-bottom: 6px; }
+  .tip-row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+  .tip-row span { color: var(--muted); }
+  .tip-row b { font-weight: 600; text-align: right; }
+  .tip-sec { color: var(--muted); margin-top: 8px; }
+  .tip ul { margin: 4px 0 0; padding-left: 18px; }
+  .tip-muted { color: var(--faint); margin-top: 4px; }
+  .tip-url { color: var(--faint); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 8px; word-break: break-all; }
+  .orph { margin-top: 12px; border: 1px dashed var(--line); border-radius: 12px; padding: 10px 14px; }
+  .orph-head { font-size: 13px; color: var(--warn); font-weight: 600; margin-bottom: 6px; }
+  .orph-row { display: flex; align-items: center; gap: 12px; padding: 4px 0; font-size: 13px; }
+  .orph-row .body { flex: 1; min-width: 0; }
+  .orph-row .meta { color: var(--muted); }
+  .toolbar { display: flex; gap: 10px; align-items: center; }
+  .toolbar input { flex: 1 1 auto; min-width: 0; height: 44px; }
+  .toolbar .tb-btn { height: 44px; padding: 0 16px; font-size: 14px; white-space: nowrap; flex-shrink: 0; margin: 0; }
+  .toolbar .primary.off { opacity: .4; cursor: not-allowed; }
+  @media (max-width: 760px) { .toolbar { flex-wrap: wrap; } .toolbar input { flex-basis: 100%; } }
+  #links { margin-top: 12px; }
+  .dbsum { color: var(--muted); font-size: 13px; margin-top: 12px; }
+  .add-row { display: flex; gap: 12px; margin-top: 16px; }
+  .add-row input { flex: 1; }
+  @media (max-width: 560px) { .add-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="logo" aria-hidden="true">⌘</span>Search Agent
+      <nav class="variants"><a href="/">Поиск</a><a href="/settings" class="on">Настройки</a><a href="/faq">FAQ</a></nav></div>
+    <div class="lives">
+      <div class="live checking" id="live" title="Проверяем, запущен ли локальный сервер"><span class="dot"></span><span id="liveText">Проверяем сервер…</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <h1>Макеты Figma</h1>
+  <p class="lead">Ссылки на макеты, с которыми будет работать система. Скопируйте ссылку в Figma — станет активной кнопка «Вставить из буфера». Всё сохраняется сразу.</p>
+
+  <section class="card">
+    <form class="toolbar" id="addForm" autocomplete="off">
+      <input type="text" id="manual" placeholder="Ссылка на макет Figma">
+      <button type="submit" class="ghost tb-btn">Добавить</button>
+      <button type="button" class="primary tb-btn" id="pasteBtn" aria-disabled="true">Вставить из буфера</button>
+      <button type="button" class="btn-check tb-btn" id="checkBtn" title="Узнать в Figma, менялись ли загруженные макеты">
+        <svg id="checkIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        <span>Проверить обновления</span>
+      </button>
+    </form>
+    <p class="hint" id="msg"></p>
+    <p class="hint" id="checkMsg" style="margin-top:4px"></p>
+    <p class="empty" id="empty">Ссылок пока нет.</p>
+    <ul class="links" id="links"></ul>
+    <div class="reload-row" id="reloadRow" hidden>
+      <span id="colorsInfo"></span>
+      <button type="button" class="btn-check" id="reloadAll" title="Загрузить макеты в старом формате и ещё не загруженные. Уже загруженные в новом формате не перезагружаются. Поиск при этом работает">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        <span>Загрузить все заново</span>
+      </button>
+    </div>
+    <p class="dbsum" id="dbsum"></p>
+    <div id="orphans"></div>
+  </section>
+
+  <section class="card" style="margin-top:16px">
+    <label>Какие страницы загружать</label>
+    <p class="hint" style="margin-top:0">Из файла загружаются только страницы, подходящие хотя бы под одно правило (регистр не важен). По умолчанию достаточно, чтобы слово встречалось в названии: «Stage» подходит для «Stage 1», «Stage 2». С отметкой «Точное совпадение» название должно совпадать целиком: «Flow» — только страница «Flow». Остальные страницы — «Archive» и т. п. — пропускаются. Если список пуст, загружаются все страницы.</p>
+    <ul class="links" id="rules"></ul>
+    <form class="add-row" id="ruleForm" autocomplete="off">
+      <input type="text" id="ruleInput" placeholder="Например, Stage">
+      <button type="submit" class="ghost">Добавить правило</button>
+    </form>
+    <p class="hint" id="ruleMsg"></p>
+  </section>
+  <section class="card" style="margin-top:16px">
+    <label for="token">Подключение к Figma</label>
+    <p class="hint" style="margin-top:0" id="tokenHint">Персональный токен Figma: Settings → Security → Personal access tokens, доступ file_content:read. Хранится только в локальном config.json и нигде не показывается.</p>
+    <form class="add-row" id="tokenForm" autocomplete="off">
+      <input type="password" id="token" autocomplete="new-password" placeholder="figd_…">
+      <button type="submit" class="ghost">Сохранить</button>
+    </form>
+    <p class="hint" id="tokenMsg"></p>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal-box">
+    <h3 id="modalTitle">Удалить макет?</h3>
+    <p id="modalText"></p>
+    <div class="modal-actions">
+      <button type="button" class="ghost" id="modalCancel">Отмена</button>
+      <button type="button" class="danger" id="modalOk">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = /^https?:$/.test(location.protocol) ? "" : "http://127.0.0.1:8000";
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const appUrl = (url) => String(url || "").replace(/^https:\/\/(www\.)?figma\.com\//, "figma://");
+
+// Сервер работает, только пока открыта страница (см. app/lifecycle.py).
+const PAGE_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2);
+function setLive(ok) {
+  if (ok) {
+    if (!$("live").classList.contains("up")) { $("live").className = "live up"; $("liveText").textContent = "Сервер запущен"; }
+    return;
+  }
+  $("live").className = "live down";
+  $("liveText").textContent = "Сервер не отвечает";
+  $("live").title = "Локальный сервер не отвечает. Если автозапуск установлен, обновите страницу — сервер запустится сам.";
+}
+function uptimeText(sec) {
+  if (sec < 60) return "только что";
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
+}
+function showServer(info) {
+  $("live").className = "live up";
+  $("liveText").textContent = `Сервер запущен · ${uptimeText(info.uptime_s || 0)}`;
+  $("live").title = [
+    `Локальный сервер работает ${uptimeText(info.uptime_s || 0)} (процесс ${info.pid})`,
+    `Открытых страниц: ${info.pages_open}`,
+    info.on_demand ? "Запущен автоматически — остановится, когда закроете страницу" : "Запущен вручную",
+  ].join("\n");
+}
+function beat() {
+  fetch(API + "/api/heartbeat", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: PAGE_ID }),
+  }).then((r) => r.json()).then(showServer).catch(() => setLive(false));
+}
+setInterval(beat, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+addEventListener("pagehide", () => {
+  navigator.sendBeacon(API + "/api/bye", new Blob([JSON.stringify({ page: PAGE_ID })], { type: "text/plain" }));
+});
+document.querySelectorAll(".variants a").forEach((a) => { a.href = (API || "") + a.getAttribute("href"); });
+
+let links = [];
+let justAdded = "";
+const FIGMA_RE = /^(https?:\/\/)?([\w-]+\.)?figma\.com\/(design|file|proto)\/[A-Za-z0-9]+/i;
+// Ключ «файл + элемент» — чтобы не предлагать вставить ссылку, которая уже есть.
+function linkKey(url) {
+  try {
+    const u = new URL(url.includes("://") ? url : "https://" + url);
+    const key = (u.pathname.match(/\/(?:design|file|proto)\/([A-Za-z0-9]+)(?:\/branch\/([A-Za-z0-9]+))?/) || []);
+    return (key[2] || key[1] || "") + "|" + (u.searchParams.get("node-id") || "").replaceAll("-", ":");
+  } catch { return url; }
+}
+const known = (url) => links.some((l) => linkKey(l.url) === linkKey(url));
+
+function msg(text, isErr) {
+  $("msg").textContent = text || "";
+  $("msg").style.color = isErr ? "var(--err)" : "";
+}
+
+function render() {
+  $("empty").hidden = links.length > 0;
+  $("links").innerHTML = links.map((l) => `
+    <li class="link-row compact${linkKey(l.url) === justAdded ? " new" : ""}">
+      <div class="body">
+        <span class="title has-tip" tabindex="0" data-tip="${esc(linkKey(l.url))}">${esc(l.title)}</span>
+        <div class="state" data-state="${esc(linkKey(l.url))}"></div>
+      </div>
+      <a class="open" href="${esc(appUrl(l.url))}" title="Открыть в приложении Figma">Открыть ↗</a>
+      <button type="button" class="act" data-act="${esc(linkKey(l.url))}" data-url="${esc(l.url)}"></button>
+      <button type="button" class="icon-btn del trash" data-url="${esc(l.url)}" title="Удалить из списка и из базы" aria-label="Удалить">${ICON.trash}</button>
+    </li>`).join("");
+  document.querySelectorAll(".del").forEach((b) => b.addEventListener("click", () => confirmRemove(b.dataset.url)));
+  document.querySelectorAll(".act").forEach((b) => b.addEventListener("click", () => startLoad(b.dataset.url)));
+  justAdded = "";
+  paintStatus();
+  refreshStatus();
+  checkClipboard();
+}
+
+async function load() {
+  try {
+    links = (await (await fetch(API + "/api/links")).json()).links;
+    setLive(true);
+  } catch { setLive(false); msg("Сервер не отвечает — ссылки не загружены.", true); }
+  render();
+}
+
+async function addLink(url) {
+  url = (url || "").trim();
+  if (!url) return;
+  if (!FIGMA_RE.test(url)) return msg("Это не похоже на ссылку на макет Figma.", true);
+  try {
+    const resp = await fetch(API + "/api/links", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+    });
+    const r = await resp.json();
+    if (r.status === "error") return msg(r.message, true);
+    links = r.links;
+    justAdded = linkKey(url);
+    msg(r.added ? "Ссылка добавлена и сохранена." : "Эта ссылка уже есть в списке.");
+    render();
+  } catch { msg("Сервер не отвечает — ссылка не сохранена.", true); }
+}
+
+// Удаление — через окно подтверждения: ссылка уходит из списка, а загруженные данные — из базы.
+function confirmRemove(url) {
+  const l = links.find((x) => x.url === url) || { title: url };
+  const it = dbItems[linkKey(url)];
+  const loaded = it && it.loaded;
+  $("modalTitle").textContent = `Удалить «${l.title}»?`;
+  $("modalText").innerHTML = loaded
+    ? `Ссылка исчезнет из списка, а из локальной базы будут удалены загруженные данные: <b>${numRu(loaded.nodes)} объектов, ≈ ${mb(loaded.stored_bytes)}</b>, и история загрузок. Это нельзя отменить.<br><br>Если потом вставить ссылку снова, макет загрузится заново по текущим правилам.`
+    : "Ссылка исчезнет из списка. В базу этот макет не загружался.";
+  $("modal").hidden = false;
+  $("modalOk").focus();
+  $("modalOk").onclick = async () => { $("modal").hidden = true; await removeLink(url); };
+}
+function confirmOrphan(o) {
+  $("modalTitle").textContent = `Удалить «${o.name || o.file_key}» из базы?`;
+  $("modalText").innerHTML = `Ссылки на этот макет в списке уже нет. Из локальной базы будут удалены загруженные данные: <b>${numRu(o.nodes)} объектов, ≈ ${mb(o.stored_bytes)}</b>, и история загрузок. Это нельзя отменить.`;
+  $("modal").hidden = false;
+  $("modalOk").focus();
+  $("modalOk").onclick = async () => {
+    $("modal").hidden = true;
+    try {
+      const r = await (await fetch(API + "/api/db/delete-orphan", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ file_key: o.file_key, scope_id: o.scope_id }),
+      })).json();
+      if (r.status === "error") return msg(r.message, true);
+      msg(`Данные «${o.name || o.file_key}» удалены из базы (${numRu(r.removed_nodes)} объектов).`);
+    } catch { return msg("Сервер не отвечает — данные не удалены.", true); }
+    refreshStatus();
+  };
+}
+function closeModal() { $("modal").hidden = true; }
+$("modalCancel").addEventListener("click", closeModal);
+$("modal").addEventListener("click", (e) => { if (e.target === $("modal")) closeModal(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("modal").hidden) closeModal(); });
+
+async function removeLink(url) {
+  try {
+    const r = await (await fetch(API + "/api/db/delete", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+    })).json();
+    if (r.status === "error") return msg(r.message, true);
+    links = r.links;
+    msg(r.removed_nodes ? `Макет удалён из списка и из базы (${numRu(r.removed_nodes)} объектов).` : "Ссылка удалена.");
+    render();
+  } catch { msg("Сервер не отвечает — ссылка не удалена.", true); }
+}
+
+// --- Загрузка в базу, прогресс и обновления ---
+const ICON = {
+  download: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>',
+  update: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>',
+  ok: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg>',
+  done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5L19.5 7"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>',
+  spin: '<svg class="spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9"/></svg>',
+};
+let dbItems = {};
+let dbBytes = 0;
+let orphans = [];
+let pollTimer = null;
+const numRu = (n) => Number(n || 0).toLocaleString("ru-RU");
+function mb(b) {
+  b = Number(b || 0);
+  if (b < 1024 * 1024) return `${Math.max(1, Math.round(b / 1024))} КБ`;
+  return `${(b / 1024 / 1024).toFixed(1).replace(".", ",")} МБ`;
+}
+const secRu = (v) => `${Number(v).toFixed(v < 10 ? 1 : 0).replace(".", ",")} с`;
+function when(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return iso;
+  return d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+function jobText(j) {
+  if (j.state === "queued") return { text: "В очереди — загрузка начнётся после текущей", bar: "indet" };
+  if (j.state === "error") return { text: "Не загружено: " + j.message, cls: "err" };
+  if (j.state === "stopped") return { text: "Загрузка остановлена", cls: "" };
+  if (j.phase === "start" || j.phase === "list") return { text: "Получаем список страниц из Figma…", bar: "indet" };
+  // Сохранение большого макета — до минуты: показываем этап и сколько он уже идёт, чтобы было видно, что работа идёт
+  const STORE = { store: [1, "Сохраняем"], parse: [1, "Разбираем ответ Figma"], compact: [2, "Отбираем нужное для поиска"], write: [3, "Записываем в базу"] };
+  if (STORE[j.phase]) {
+    const [n, label] = STORE[j.phase];
+    const rows = j.phase === "write" && j.rows ? ` ${numRu(j.rows)} объектов` : "";
+    const t = j.phase_s != null ? ` · ${secRu(j.phase_s)}` : "";
+    return { text: `Сохранение, шаг ${n} из 3: ${label}${rows}…${t} · скачано ${mb(j.bytes)}`, bar: Math.round(n / 3 * 100) };
+  }
+  const pages = j.pages_total ? `Скачиваем страницы (${j.pages_loaded} из ${j.pages_total}) · ` : "Скачиваем · ";
+  const of = j.expected_bytes ? ` из ~${mb(j.expected_bytes)}` : "";
+  const left = j.remaining_s != null ? ` · осталось ~${secRu(j.remaining_s)}` : "";
+  const speed = j.speed_bps ? ` · ${mb(j.speed_bps)}/с` : "";
+  const pct = j.expected_bytes ? Math.min(99, Math.round(j.bytes / j.expected_bytes * 100)) : null;
+  return { text: `${pages}скачано ${mb(j.bytes)}${of}${left}${speed} · прошло ${secRu(j.elapsed_s)}`, bar: pct == null ? "indet" : pct };
+}
+
+function paintStatus() {
+  document.querySelectorAll("[data-state]").forEach((el) => {
+    const it = dbItems[el.dataset.state];
+    const btn = document.querySelector(`[data-act="${CSS.escape(el.dataset.state)}"]`);
+    let text = "Не загружено в базу", cls = "", bar = null, icon = "download", bcls = "", title = "Загрузить в базу", busy = false;
+    const job = it && it.job, loaded = it && it.loaded, upd = it && it.update;
+    if (loaded) {
+      text = `Загружено ${when(loaded.loaded_at)}` + (loaded.colors ? "" : ' · <span class="nocolor">старый формат — загрузите заново</span>');
+      icon = "done"; bcls = "done"; title = "Загружено в базу";
+      if (upd && upd.available) {
+        text += ` · <span class="state upd" style="display:inline">есть обновление в Figma</span>`;
+        icon = "update"; bcls = "upd"; title = "В Figma есть более новая версия — обновить";
+      } else if (upd && upd.error) {
+        text += " · не удалось проверить обновления";
+      }
+    }
+    if (job && (job.state === "queued" || job.state === "running")) {
+      ({ text, cls, bar } = jobText(job));
+      icon = "spin"; bcls = ""; title = "Идёт загрузка"; busy = true;
+    } else if (job && job.state === "error") {
+      const e = jobText(job);
+      text = e.text + (loaded ? " · в базе остаётся прошлая загрузка" : ""); cls = "err";
+    } else if (job && job.state === "stopped") {
+      text = "Загрузка остановлена" + (loaded ? ` · в базе — загрузка от ${when(loaded.loaded_at)}` : "");
+    }
+    el.className = "state" + (cls ? " " + cls : "");
+    const name = document.querySelector(`[data-tip="${CSS.escape(el.dataset.state)}"]`);
+    if (name) name.classList.toggle("unloaded", !loaded);  // не загружено — название красным
+    const barHtml = bar == null ? "" : bar === "indet" ? '<div class="pbar indet"><i></i></div>'
+      : `<div class="pbar"><i style="width:${bar === "full" ? 100 : bar}%"></i></div>`;
+    el.innerHTML = (cls === "err" ? esc(text) : text) + barHtml;
+    if (btn) {
+      btn.innerHTML = ICON[icon];
+      btn.className = "act" + (bcls ? " " + bcls : "");
+      btn.title = title; btn.setAttribute("aria-label", title);
+      btn.disabled = busy || bcls === "done";  // двойная галочка — просто отметка, не кнопка
+    }
+  });
+  const vals = Object.values(dbItems), loadedN = vals.filter((i) => i.loaded).length;
+  const colorN = vals.filter((i) => i.loaded && i.loaded.colors).length;
+  const anyBusy = vals.some((i) => i.job && (i.job.state === "queued" || i.job.state === "running"));
+  $("reloadRow").hidden = !vals.length;
+  $("colorsInfo").innerHTML = !loadedN ? "Макеты ещё не загружены в базу."
+    : colorN === loadedN ? `Все макеты (<b>${colorN}</b>) загружены в новом формате: цвета, шрифты, картинки, скругления, auto layout и др.`
+    : `В новом формате (цвета, шрифты, картинки, скругления, auto layout и др.) — <b>${colorN} из ${loadedN}</b> макетов. Остальные нужно загрузить заново.`;
+  const outdated = vals.filter((i) => !(i.loaded && i.loaded.colors)).length;
+  $("reloadAll").disabled = anyBusy || !outdated;
+  $("reloadAll").querySelector("span").textContent = outdated && outdated < vals.length ? `Загрузить старые (${outdated})` : "Загрузить все заново";
+  paintCheckBtn();
+  $("dbsum").textContent = dbBytes ? `Локальная база: ${mb(dbBytes)} · db/figma.sqlite` : "";
+  $("orphans").innerHTML = !orphans.length ? "" : `<div class="orph">
+      <div class="orph-head">В базе есть данные макетов, которых нет в списке</div>
+      ${orphans.map((o, i) => `<div class="orph-row"><div class="body"><b>${esc(o.name || o.file_key)}</b>
+        <span class="meta"> · ${o.scope_id ? esc(o.scope_name || o.scope_id) : "весь файл"} · загружено ${esc(when(o.loaded_at))} · ${numRu(o.nodes)} объектов · ≈ ${mb(o.stored_bytes)}</span></div>
+        <button type="button" class="ghost orph-del" data-i="${i}">Удалить из базы</button></div>`).join("")}
+    </div>`;
+  document.querySelectorAll(".orph-del").forEach((b) => b.addEventListener("click", () => confirmOrphan(orphans[+b.dataset.i])));
+}
+
+// --- Подсказка с подробностями при наведении на название ---
+function tipHtml(key) {
+  const l = links.find((x) => linkKey(x.url) === key);
+  const it = dbItems[key] || {};
+  const d = it.loaded, upd = it.update;
+  const rows = [];
+  const row = (k, v) => rows.push(`<div class="tip-row"><span>${k}</span><b>${v}</b></div>`);
+  if (d) row("Формат", d.colors ? "новый: цвета, шрифты, картинки…" : "старый — загрузите заново");
+  row("Что загружаем", l && l.scope === "весь файл" ? "страницы по правилам" : esc(l ? l.scope : ""));
+  if (d) {
+    row("Загружено", esc(when(d.loaded_at)));
+    row("Объектов", numRu(d.nodes));
+    row("В базе", "≈ " + mb(d.stored_bytes));
+    row("Заняло", secRu(d.total_s) + (d.download_s != null ? ` (скачивание ${secRu(d.download_s)})` : ""));
+    if (upd) row("Обновления", upd.available ? "есть новая версия в Figma" + (upd.remote_modified ? ", изменён " + esc(when(upd.remote_modified)) : "")
+                 : upd.error ? "не удалось проверить: " + esc(upd.error) : "актуально, проверено " + esc(when(upd.checked_at)));
+  } else {
+    row("В базе", "не загружено");
+  }
+  let pages = "";
+  if (d && d.pages && d.pages.length) {
+    pages = `<div class="tip-sec">Загруженные страницы (${d.pages.length})</div><ul>${d.pages.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>`;
+    if (d.skipped && d.skipped.length) pages += `<div class="tip-muted">Пропущено по правилам: ${d.skipped.length}</div>`;
+  } else if (d && d.node_id) {
+    pages = `<div class="tip-sec">Загружен элемент</div><ul><li>${esc(d.scope_name || d.node_id)}</li></ul>`;
+  }
+  return `<div class="tip-title">${esc(l ? l.title : "")}</div>${rows.join("")}${pages}<div class="tip-url">${esc(l ? l.url : "")}</div>`;
+}
+const tip = document.createElement("div");
+tip.className = "tip"; tip.hidden = true; tip.setAttribute("role", "tooltip");
+document.body.appendChild(tip);
+function placeTip(el) {
+  const r = el.getBoundingClientRect();
+  const w = Math.min(tip.offsetWidth, 340), h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  const below = r.bottom + 8;
+  tip.style.top = Math.max(8, below + h > innerHeight - 8 ? r.top - h - 8 : below) + "px";
+}
+function showTip(el) {
+  tip.innerHTML = tipHtml(el.dataset.tip);
+  tip.style.left = "0px"; tip.style.top = "0px";
+  tip.hidden = false;
+  placeTip(el);
+  requestAnimationFrame(() => { if (!tip.hidden) placeTip(el); });  // после раскладки размеры точные
+}
+const hideTip = () => { tip.hidden = true; };
+document.addEventListener("mouseover", (e) => { const el = e.target.closest(".has-tip"); if (el) showTip(el); });
+document.addEventListener("mouseout", (e) => { if (e.target.closest(".has-tip")) hideTip(); });
+document.addEventListener("focusin", (e) => { const el = e.target.closest(".has-tip"); if (el) showTip(el); });
+document.addEventListener("focusout", (e) => { if (e.target.closest(".has-tip")) hideTip(); });
+addEventListener("scroll", hideTip, { passive: true });
+
+async function refreshStatus() {
+  try {
+    const r = await (await fetch(API + "/api/db/status")).json();
+    dbItems = r.items; dbBytes = r.db_bytes; orphans = r.orphans || [];
+  } catch {
+    // сервер на миг занят — пробуем снова, а не замираем на последнем состоянии
+    clearTimeout(pollTimer);
+    pollTimer = setTimeout(refreshStatus, 2000);
+    return;
+  }
+  paintStatus();
+  const busy = Object.values(dbItems).some((i) => i.job && (i.job.state === "queued" || i.job.state === "running"));
+  clearTimeout(pollTimer);
+  if (busy) pollTimer = setTimeout(refreshStatus, 700);
+}
+
+async function startLoad(url) {
+  try {
+    const r = await (await fetch(API + "/api/db/load", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }),
+    })).json();
+    if (r.status === "error") return msg(r.message, true);
+  } catch { return msg("Сервер не отвечает — загрузка не началась.", true); }
+  refreshStatus();
+}
+
+$("reloadAll").addEventListener("click", async () => {
+  $("reloadAll").disabled = true;
+  try {
+    const r = await (await fetch(API + "/api/db/load-all", { method: "POST" })).json();
+    if (r.status === "error") return msg(r.message, true);
+    msg(!r.queued ? "Все макеты уже загружены в новом формате — перезагружать нечего."
+      : `В очереди макетов: ${r.queued}${r.skipped ? ` (уже в новом формате и пропущены: ${r.skipped})` : ""}. Загружаются по одному — поиск по базе пока работает по прежним данным.`);
+  } catch { return msg("Сервер не отвечает — загрузка не началась.", true); }
+  refreshStatus();
+});
+
+// Кнопка «Проверить обновления» / «Остановить»:
+//   idle — ничего не грузится: «Проверить обновления»;
+//   checking — идёт проверка: значок крутится, кнопка недоступна;
+//   loading — есть загрузки в очереди: «Остановить · осталось N»;
+//   stopping — нажали «Остановить», ждём ответа сервера.
+const CHECK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>';
+const STOP_ICON = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2.5"/></svg>';
+let checkMode = "idle";
+function loadingCount() {
+  return Object.values(dbItems).filter((i) => i.job && (i.job.state === "queued" || i.job.state === "running")).length;
+}
+function paintCheckBtn() {
+  const btn = $("checkBtn"), n = loadingCount();
+  let mode = checkMode;
+  if (mode === "idle" && n) mode = "loading";
+  if (mode === "stopping" && !n) mode = checkMode = "idle";
+  const view = {
+    idle: [CHECK_ICON, "Проверить обновления", "Узнать в Figma, менялись ли загруженные макеты", "", false],
+    checking: [CHECK_ICON, "Проверяем…", "Проверяем в Figma, менялись ли макеты", "", true],
+    loading: [STOP_ICON, `Остановить · осталось ${n}`, "Снять с очереди все макеты и прервать текущую загрузку. В базе останутся прежние данные", "stop", false],
+    stopping: [STOP_ICON, "Останавливаем…", "Останавливаем загрузки", "stopping", true],
+  }[mode];
+  btn.innerHTML = view[0] + `<span>${view[1]}</span>`;
+  btn.title = view[2];
+  btn.className = "btn-check tb-btn" + (view[3] ? " " + view[3] : "");
+  btn.disabled = view[4];
+  btn.dataset.mode = mode;
+  if (mode === "checking") btn.querySelector("svg").classList.add("spin");
+}
+
+$("checkBtn").addEventListener("click", async () => {
+  const mode = $("checkBtn").dataset.mode;
+  if (mode === "loading") {
+    checkMode = "stopping"; paintCheckBtn();
+    try {
+      const r = await (await fetch(API + "/api/db/stop", { method: "POST" })).json();
+      msg(r.stopped ? `Остановлено загрузок: ${r.stopped}. В базе остались прежние данные этих макетов.` : "Нечего останавливать.");
+    } catch { msg("Сервер не отвечает — не удалось остановить.", true); }
+    checkMode = "idle";
+    await refreshStatus();
+    return;
+  }
+  if (mode !== "idle") return;
+  checkMode = "checking"; paintCheckBtn();
+  $("checkMsg").textContent = "Проверяем в Figma…";
+  try {
+    const r = await (await fetch(API + "/api/db/check", { method: "POST" })).json();
+    if (r.status === "error") $("checkMsg").textContent = r.message;
+    else {
+      checkMode = "idle";
+      await refreshStatus();
+      const upd = Object.values(dbItems).filter((i) => i.update && i.update.available).length;
+      $("checkMsg").textContent = !r.checked ? "Пока нечего проверять — сначала загрузите макеты в базу."
+        : upd ? `Проверено макетов: ${r.checked}. Есть обновления: ${upd} — нажмите синюю кнопку в строке.`
+        : `Проверено макетов: ${r.checked}. Все загруженные макеты актуальны.`;
+    }
+  } catch { $("checkMsg").textContent = "Сервер не отвечает."; }
+  checkMode = "idle";
+  paintCheckBtn();
+});
+
+// --- Вставка из буфера ---
+// Если браузер уже разрешил читать буфер, кнопка появляется только когда там ссылка на Figma,
+// которой ещё нет в списке. Если разрешения ещё нет, кнопка видна всегда: первый клик спросит его.
+let clipText = "";
+async function clipboardPermission() {
+  try { return (await navigator.permissions.query({ name: "clipboard-read" })).state; } catch { return "unknown"; }
+}
+function setPaste(enabled, title) {
+  const b = $("pasteBtn");
+  b.setAttribute("aria-disabled", enabled ? "false" : "true");
+  b.classList.toggle("off", !enabled);
+  b.title = title;
+}
+async function checkClipboard() {
+  const perm = await clipboardPermission();
+  if (perm === "granted" && document.hasFocus()) {
+    try { clipText = (await navigator.clipboard.readText()).trim(); } catch { clipText = ""; }
+    if (FIGMA_RE.test(clipText) && known(clipText)) setPaste(false, "Ссылка из буфера уже есть в списке");
+    else if (FIGMA_RE.test(clipText)) setPaste(true, "Вставить: " + clipText);
+    else setPaste(false, "Скопируйте ссылку на макет в Figma — кнопка станет активной");
+  } else if (perm === "denied") {
+    setPaste(false, "Браузер запретил доступ к буферу. Вставьте ссылку в поле или нажмите Cmd+V на странице");
+  } else if (perm !== "granted") {
+    // Разрешения ещё нет: узнать, что в буфере, нельзя — первый клик спросит разрешение.
+    setPaste(true, "Вставить ссылку из буфера (браузер спросит разрешение)");
+  }
+}
+$("pasteBtn").addEventListener("click", async () => {
+  if ($("pasteBtn").getAttribute("aria-disabled") === "true") return;
+  try {
+    const text = (await navigator.clipboard.readText()).trim();
+    if (!text) return msg("Буфер обмена пуст.", true);
+    await addLink(text);
+  } catch {
+    msg("Браузер не дал прочитать буфер. Нажмите Cmd+V на этой странице или вставьте ссылку в поле.", true);
+  }
+});
+// Cmd+V в любом месте страницы (кроме поля ввода) — тоже добавляет ссылку.
+document.addEventListener("paste", (e) => {
+  if (e.target === $("manual")) return;
+  const text = (e.clipboardData && e.clipboardData.getData("text")) || "";
+  if (text) { e.preventDefault(); addLink(text); }
+});
+addEventListener("focus", checkClipboard);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkClipboard(); });
+setInterval(() => { if (document.hasFocus()) checkClipboard(); }, 1500);
+
+$("addForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  addLink($("manual").value).then(() => { if (!$("msg").style.color) $("manual").value = ""; });
+});
+
+// --- Правила отбора страниц ---
+let rules = [];
+function renderRules() {
+  $("rules").innerHTML = rules.map((r, i) => `
+    <li class="link-row"><div class="body"><div class="title">${esc(r.text)}</div>
+      <div class="meta">${r.exact ? `только страница с названием «${esc(r.text)}»` : `страницы, в названии которых есть «${esc(r.text)}»`}</div></div>
+      <label class="exact" title="Включено — название страницы должно совпадать целиком; выключено — достаточно, чтобы слово встречалось в названии">
+        <span>Точное совпадение</span><input type="checkbox" class="rule-exact" data-i="${i}" ${r.exact ? "checked" : ""}>
+      </label>
+      <button type="button" class="icon-btn rule-del" data-i="${i}" title="Удалить" aria-label="Удалить">×</button></li>`).join("");
+  document.querySelectorAll(".rule-del").forEach((b) => b.addEventListener("click", () => saveRules(rules.filter((_, i) => i !== +b.dataset.i), "Правило удалено.")));
+  document.querySelectorAll(".rule-exact").forEach((c) => c.addEventListener("change", () => {
+    const next = rules.map((r, i) => i === +c.dataset.i ? { ...r, exact: c.checked } : r);
+    saveRules(next, c.checked ? `«${next[+c.dataset.i].text}» — только точное совпадение названия.` : `«${next[+c.dataset.i].text}» — любое вхождение в название.`);
+  }));
+}
+async function saveRules(next, note) {
+  try {
+    const r = await (await fetch(API + "/api/rules", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ rules: next }),
+    })).json();
+    if (r.status === "error") { $("ruleMsg").textContent = r.message; return; }
+    rules = r.rules;
+    $("ruleMsg").textContent = note || "";
+    renderRules();
+  } catch { $("ruleMsg").textContent = "Сервер не отвечает — правила не сохранены."; }
+}
+$("ruleForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const v = $("ruleInput").value.trim();
+  if (!v) return;
+  if (rules.some((r) => r.text.toLowerCase() === v.toLowerCase())) { $("ruleMsg").textContent = "Такое правило уже есть."; return; }
+  $("ruleInput").value = "";
+  saveRules([...rules, { text: v, exact: false }], "Правило добавлено.");
+});
+fetch(API + "/api/rules").then((r) => r.json()).then((d) => { rules = d.rules; renderRules(); }).catch(() => {});
+
+// --- Подключение к Figma: токен ---
+async function loadToken() {
+  try {
+    const r = await (await fetch(API + "/api/status")).json();
+    $("token").placeholder = r.configured ? "Токен сохранён — оставьте пустым, чтобы не менять" : "figd_…";
+    $("tokenMsg").textContent = r.configured ? "" : "Токен не задан — без него макеты не загрузить.";
+    $("tokenMsg").style.color = r.configured ? "" : "var(--err)";
+    if (r.env_overrides && r.env_overrides.length)
+      $("tokenMsg").textContent = `Заданы переменные окружения ${r.env_overrides.join(", ")} — они важнее сохранённых настроек.`;
+  } catch {}
+}
+$("tokenForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const token = $("token").value.trim();
+  if (!token) return;
+  try {
+    const r = await (await fetch(API + "/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }),
+    })).json();
+    $("token").value = "";
+    if (r.status === "error") { $("tokenMsg").textContent = r.message; $("tokenMsg").style.color = "var(--err)"; return; }
+    await loadToken();
+    $("tokenMsg").textContent = "Токен сохранён."; $("tokenMsg").style.color = "";
+  } catch { $("tokenMsg").textContent = "Сервер не отвечает — токен не сохранён."; }
+});
+loadToken();
+
+beat();
+load();
+</script>
+</body>
+</html>

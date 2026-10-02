@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FAQ — Search Agent</title>
+<style>
+
+
+  /* Место под полосу прокрутки есть всегда — при переходе между страницами вёрстка не сдвигается. */
+  html { scrollbar-gutter: stable; }
+  :root {
+    --bg: #f5f5f0; --surface: #ffffff; --surface-2: #eef1ea; --text: #1f2620; --muted: #6e746c;
+    --faint: #9aa097; --line: #e2e4dc; --accent: #2f4a36; --accent-soft: #5d7d62; --accent-bg: #e7ede4;
+    --accent-text: #ffffff; --warn: #8a5a12; --warn-bg: #f7efdf; --err: #9c2f2b; --err-bg: #f7e6e3;
+    --focus: rgba(47, 74, 54, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141714; --surface: #1c201c; --surface-2: #222822; --text: #e8ebe5; --muted: #a0a79d;
+      --faint: #767d73; --line: #2e342e; --accent: #9cc3a2; --accent-soft: #7fa585; --accent-bg: #223027;
+      --accent-text: #122016; --warn: #e8c07c; --warn-bg: #33291a; --err: #f0a39c; --err-bg: #3a1f1d;
+      --focus: rgba(156, 195, 162, .22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1120px; margin: 0 auto; padding: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+          display: grid; place-items: center; font-size: 18px; }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); }
+  .live.down .dot { background: var(--err); }
+  :root { --blue: #2f6fe4; --blue-bg: #e8f0fe; --green: #1f8a4c; }
+  @media (prefers-color-scheme: dark) { :root { --blue: #7aa7ff; --blue-bg: #1c2a44; --green: #6fd39a; } }
+  .live.checking .dot { background: var(--faint); }
+  .live.up .dot { box-shadow: 0 0 0 3px var(--accent-bg); }
+  #live.down { color: var(--err); }
+  .variants { display: flex; gap: 4px; margin-left: 12px; font-size: 13px; font-weight: 600; }
+  .variants a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  .variants a.on { background: var(--surface-2); color: var(--accent); }
+  .lives { display: flex; gap: 20px; align-items: center; }
+  #plugin.down .dot { background: var(--faint); }
+  .actions { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+  .ghost { padding: 7px 14px; background: var(--surface); color: var(--accent); border: 1px solid var(--line); font-size: 14px; }
+  .ghost:hover { border-color: var(--accent-soft); }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .head .count { margin: 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: min(560px, calc(100% - 32px));
+           background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 12px; font-size: 14px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 10; }
+  .toast.err { background: var(--err); color: #fff; }
+  .toast[hidden] { display: none; }
+  ol.steps { margin: 8px 0 0; padding-left: 20px; }
+  ol.steps li + li { margin-top: 4px; }
+  @media (max-width: 560px) { .live span:last-child { display: none; } .lives { gap: 10px; } }
+
+
+
+  button { font: inherit; cursor: pointer; border: 0; color: inherit; }
+  main { max-width: 1120px; margin: 0 auto; padding: 32px 16px 96px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; text-align: center; }
+  .lead { color: var(--muted); font-size: 15px; max-width: 720px; margin: 0 auto 28px; text-align: center; text-wrap: balance; }
+  .faq { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 20px; align-items: start; }
+  /* Слева — список тем с поиском */
+  .nav { position: sticky; top: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .nav-search { padding: 12px; border-bottom: 1px solid var(--line); position: relative; }
+  .nav-search input { width: 100%; font: inherit; font-size: 14px; padding: 9px 12px 9px 34px; color: var(--text); background: var(--surface-2);
+                      border: 1px solid transparent; border-radius: 10px; }
+  .nav-search input:focus { outline: none; background: var(--surface); border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--focus); }
+  .nav-search svg { position: absolute; left: 24px; top: 50%; transform: translateY(-50%); width: 15px; height: 15px; color: var(--faint); pointer-events: none; }
+  .nav-list { max-height: calc(100vh - 160px); overflow-y: auto; padding: 6px 0 10px; overscroll-behavior: contain; }
+  /* Полоса прокрутки — как у фильтров на странице поиска */
+  @supports (-moz-appearance: none) { .nav-list { scrollbar-width: thin; scrollbar-color: var(--line) transparent; } }
+  .nav-list::-webkit-scrollbar { width: 12px; }
+  .nav-list::-webkit-scrollbar-track { background: transparent; margin: 12px 0; }
+  .nav-list::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; border: 4px solid var(--surface); min-height: 40px; }
+  .nav-list::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+  .nav-list::-webkit-scrollbar-corner { background: transparent; }
+  .nav-group { font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); padding: 12px 18px 6px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 18px; background: none; border-radius: 0;
+              font-size: 14px; font-weight: 500; color: var(--text); }
+  .nav-item:hover { background: var(--surface-2); }
+  .nav-item.on { background: var(--accent-bg); color: var(--accent); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+  .nav-item .t { flex: 1; min-width: 0; }
+  .nav-item .dot2 { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; background: var(--line); }
+  .nav-item .dot2.search { background: var(--accent-soft); }
+  .nav-empty { padding: 16px 18px; color: var(--muted); font-size: 13.5px; }
+  .nav-legend { padding: 10px 18px 12px; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; }
+  .nav-legend span { display: inline-flex; align-items: center; gap: 6px; }
+  mark { background: #ffe58a; color: inherit; border-radius: 3px; padding: 0 1px; }
+  @media (prefers-color-scheme: dark) { mark { background: #6b5a14; } }
+  /* Справа — выбранная тема */
+  .topic { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 28px 32px 32px; min-height: 420px; }
+  .topic-h { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .topic h2 { font-size: 26px; letter-spacing: -.02em; margin: 0; }
+  .crumb { font-size: 12.5px; color: var(--faint); font-weight: 600; margin-bottom: 6px; }
+  .badge { font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge.search { background: var(--accent-bg); color: var(--accent); }
+  .badge.tip { background: var(--surface-2); color: var(--muted); }
+  .topic h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--faint); margin: 24px 0 8px; }
+  .topic p { margin: 0; font-size: 15px; }
+  .topic p + p { margin-top: 8px; }
+  .topic ul { margin: 0; padding-left: 20px; }
+  .topic li + li { margin-top: 5px; }
+  code { font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--surface-2); padding: 1px 6px; border-radius: 5px; }
+  .ex { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .ex-row { display: grid; grid-template-columns: minmax(180px, 300px) 1fr; }
+  .ex-row + .ex-row { border-top: 1px solid var(--line); }
+  .ex-row > div { padding: 11px 14px; font-size: 14.5px; }
+  .ex-row > div:first-child { background: var(--surface-2); font-weight: 600; }
+  .later { margin-top: 24px; padding: 12px 14px; border-radius: 12px; background: var(--surface-2); color: var(--muted); font-size: 14px; }
+  .pn { display: flex; justify-content: space-between; gap: 12px; margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--line); }
+  .pn button { background: none; color: var(--accent); font-size: 14px; padding: 4px 0; }
+  .pn button:hover { text-decoration: underline; }
+  .pn button[hidden] { visibility: hidden; display: block; }
+  @media (max-width: 820px) {
+    .faq { grid-template-columns: 1fr; }
+    .nav { position: static; }
+    .nav-list { max-height: 260px; }
+    .topic { padding: 22px 20px; }
+    .ex-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="logo" aria-hidden="true">⌘</span>Search Agent
+      <nav class="variants"><a href="/">Поиск</a><a href="/settings">Настройки</a><a href="/faq" class="on">FAQ</a></nav></div>
+    <div class="lives">
+      <div class="live checking" id="live" title="Проверяем, запущен ли локальный сервер"><span class="dot"></span><span id="liveText">Проверяем сервер…</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <h1>FAQ</h1>
+  <p class="lead">Какие данные есть в базе, что они означают и как по ним искать. Выберите тему слева или найдите её поиском.</p>
+  <div class="faq">
+    <aside class="nav" aria-label="Темы">
+      <div class="nav-search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input type="search" id="fq" placeholder="Найти: тени, шрифт, цвет…" aria-label="Поиск по FAQ">
+      </div>
+      <div class="nav-list" id="navList" role="tablist" aria-orientation="vertical"></div>
+      <div class="nav-legend"><span><i class="dot2 search" style="width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--accent-soft)"></i>ищется</span>
+        <span><i style="width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--line)"></i>в подсказке</span></div>
+    </aside>
+    <article class="topic" id="topic" role="tabpanel" aria-live="polite"></article>
+  </div>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = /^https?:$/.test(location.protocol) ? "" : "http://127.0.0.1:8000";
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const appUrl = (url) => String(url || "").replace(/^https:\/\/(www\.)?figma\.com\//, "figma://");
+
+// Сервер работает, только пока открыта страница (см. app/lifecycle.py).
+const PAGE_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2);
+function setLive(ok) {
+  if (ok) {
+    if (!$("live").classList.contains("up")) { $("live").className = "live up"; $("liveText").textContent = "Сервер запущен"; }
+    return;
+  }
+  $("live").className = "live down";
+  $("liveText").textContent = "Сервер не отвечает";
+  $("live").title = "Локальный сервер не отвечает. Если автозапуск установлен, обновите страницу — сервер запустится сам.";
+}
+function uptimeText(sec) {
+  if (sec < 60) return "только что";
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
+}
+function showServer(info) {
+  $("live").className = "live up";
+  $("liveText").textContent = `Сервер запущен · ${uptimeText(info.uptime_s || 0)}`;
+  $("live").title = [
+    `Локальный сервер работает ${uptimeText(info.uptime_s || 0)} (процесс ${info.pid})`,
+    `Открытых страниц: ${info.pages_open}`,
+    info.on_demand ? "Запущен автоматически — остановится, когда закроете страницу" : "Запущен вручную",
+  ].join("\n");
+}
+function beat() {
+  fetch(API + "/api/heartbeat", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: PAGE_ID }),
+  }).then((r) => r.json()).then(showServer).catch(() => setLive(false));
+}
+setInterval(beat, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+addEventListener("pagehide", () => {
+  navigator.sendBeacon(API + "/api/bye", new Blob([JSON.stringify({ page: PAGE_ID })], { type: "text/plain" }));
+});
+document.querySelectorAll(".variants a").forEach((a) => { a.href = (API || "") + a.getAttribute("href"); });
+
+
+// --- Темы FAQ ---
+// status: "search" — ищется через поиск или фильтры, "tip" — хранится и видно в подсказке (поиск появится позже).
+const TOPICS = [
+  { id: "how", group: "Общее", title: "Как это работает",
+    what: "Поиск идёт не по Figma напрямую, а по <b>локальной базе</b> на этом компьютере (<code>db/figma.sqlite</code>). В неё один раз загружается структура макетов из «Настроек»: слои, компоненты, тексты, размеры, цвета, шрифты и другие свойства.",
+    how: ["Ссылка на <b>весь файл</b> — загружаются только страницы, подходящие под правила в «Настройках» (Stage, Local components, Flow…). Архивные пропускаются.",
+          "Ссылка на <b>страницу, секцию или фрейм</b> — загружается только этот элемент со всем содержимым.",
+          "Поэтому поиск сразу по всем макетам занимает секунды и не обращается к Figma.",
+          "Данные — на момент загрузки. Изменения в Figma подтягиваются кнопкой «Обновить» в «Настройках».",
+          "Файлы в Figma никогда не изменяются — только читаются."] },
+  { id: "results", group: "Общее", title: "Фильтры и результаты",
+    what: "После поиска результаты разбиты на группы по типу объекта, а слева появляются фильтры — как в интернет-магазине.",
+    how: ["<b>Вкладки макетов</b> над результатами — «Все макеты» или один макет; числа на вкладках учитывают фильтры.",
+          "<b>Фильтры:</b> внутри одного фильтра — «или», между разными — «и». Пустые значения скрыты, фильтр с одним вариантом не показывается.",
+          "Фильтры, вкладки, страницы и «скрытые» работают мгновенно — по уже найденному, без нового запроса.",
+          "<b>Подсказка</b> при наведении на название: макет, страница, путь, размер, координаты, цвета, шрифт и остальные свойства.",
+          "<b>«Открыть в Figma»</b> открывает слой в приложении Figma.",
+          "<b>Кнопка копирования</b> у заголовка группы копирует все её результаты списком: название, вариант, страница и ссылка.",
+          "Результаты сохраняются при переходе в «Настройки» и обратно."] },
+  { id: "load", group: "Общее", title: "Загрузка и обновление",
+    what: "Все макеты добавляются и обновляются на странице «Настройки».",
+    how: ["<b>Добавить</b> — вставьте ссылку и нажмите кнопку загрузки в строке. Загрузки идут по очереди.",
+          "<b>Проверить обновления</b> — узнаёт в Figma, менялись ли макеты после загрузки; у изменившихся появится синяя кнопка.",
+          "<b>Загрузить все заново</b> — ставит в очередь все макеты. Пока они загружаются, поиск работает по прежним данным.",
+          "<b>Формат данных.</b> Когда в базу добавляются новые типы данных, старые макеты помечаются «старый формат — загрузите заново».",
+          "<b>Размер базы.</b> Хранится только нужное для поиска; повторяющиеся значения (шрифты, стили, картинки) записываются один раз.",
+          "Удаление макета крестиком убирает его и из списка, и из базы."] },
+  { id: "limits", group: "Общее", title: "Ограничения",
+    what: "Что не попадает в базу или работает с оговорками.",
+    how: ["<b>Простые фигуры без своего названия</b> («Rectangle 12», «Vector», «Ellipse 3») не хранятся — их больше всего, а искать их по названию бессмысленно. Картинки и фигуры со своим названием хранятся.",
+          "<b>Цвет</b> — только верхняя видимая сплошная заливка; градиенты и картинки в поиск по цвету не попадают.",
+          "<b>Названия переменных</b> не показываются, только сам факт «переменная»: Figma отдаёт их только на тарифе Enterprise.",
+          "Загружаются только страницы, подходящие под правила.",
+          "Данные — на момент последней загрузки макета."] },
+  { id: "safety", group: "Общее", title: "Безопасность",
+    what: "Как защищены токен и макеты.",
+    how: ["Токен Figma хранится только в локальном <code>config.json</code> с доступом лишь для вашего пользователя и нигде не показывается — ни на страницах, ни в журналах.",
+          "Файлы в Figma только читаются.",
+          "Сервер работает только на этом компьютере (127.0.0.1) и сам останавливается, когда страницы закрыты."] },
+
+  { id: "name", group: "Данные в базе", title: "Название слоя", status: "search",
+    what: "Имя слоя, как в панели слоёв Figma.",
+    how: ["Ищется вхождение без учёта регистра: «head» найдёт «Header» и «Page head».",
+          "Точные совпадения показываются первыми; частичные помечены «частичное совпадение».",
+          "Результаты разбиты по типу: фреймы, секции, группы, картинки, фигуры, другие слои."],
+    examples: [["<code>Header</code>", "Все фреймы, группы и слои со словом Header в названии."], ["<code>avatar</code>", "Все слои-аватарки во всех макетах."]] },
+  { id: "type", group: "Данные в базе", title: "Тип объекта", status: "search",
+    what: "Инстанс, мастер-компонент, фрейм, секция, группа, картинка, фигура или вектор, текст, страница и другие слои.",
+    how: ["Каждый результат попадает в группу своего типа.", "Фильтр «Тип объекта» слева оставляет только нужные группы."],
+    examples: [["<code>Banner</code> + фильтр Тип = Картинки", "Только картинки с названием Banner."]] },
+  { id: "component", group: "Данные в базе", title: "Компонент и вариант", status: "search",
+    what: "Для каждого инстанса — из какого мастер-компонента он сделан, включая библиотечные и наборы вариантов. Свойства варианта (<code>Size=Large, Color=Pink</code>) тоже сохраняются.",
+    how: ["Введите <b>точное</b> название компонента или набора вариантов — найдутся все его инстансы.",
+          "Находятся даже <b>переименованные</b>, <b>вложенные</b> в другие компоненты и <b>скрытые</b> инстансы.",
+          "Отвязанные (detach) копии сюда не попадают — это уже обычные слои.",
+          "Если такого компонента нет, появятся похожие названия.",
+          "Фильтры «Компонент» и по свойствам вариантов (Size, Color, State…) уточняют результат."],
+    examples: [["<code>Primary Button</code>", "Все инстансы кнопки во всех макетах."], ["<code>Primary Button</code> + Color = Pink", "Только розовые варианты."], ["<code>Primary Button</code> + Ш 56", "Только кнопки шириной 56 px."]] },
+  { id: "text", group: "Данные в базе", title: "Текст", status: "search",
+    what: "Содержимое текстовых слоёв.",
+    how: ["Введите слово или фразу — найдутся все тексты, где оно встречается. Совпадение подсвечивается.", "Регистр не важен."],
+    examples: [["<code>Купить</code>", "Все кнопки и надписи со словом «Купить»."], ["<code>Забыли пароль</code>", "Где встречается эта подсказка."]] },
+  { id: "page", group: "Данные в базе", title: "Страница и макет", status: "search",
+    what: "На какой странице Figma и в каком макете лежит объект.",
+    how: ["Фильтр «Страница» слева.", "Вкладки над результатами — по макетам."],
+    examples: [["<code>Popup</code> + Страница = Stage 2", "Попапы только со страницы Stage 2."]] },
+  { id: "hidden", group: "Данные в базе", title: "Видимость", status: "search",
+    what: "Скрыт ли объект — сам или через любого из родителей.",
+    how: ["Скрытые помечены «скрыт».", "Галочка «Не показывать скрытые объекты» под полем поиска убирает их из результатов."] },
+  { id: "size", group: "Данные в базе", title: "Размер и координаты", status: "search",
+    what: "Ширина, высота и положение на холсте в пикселях.",
+    how: ["Поля «Ш» и «В» — <b>точный</b> размер.", "С названием уточняют поиск, без названия находят все объекты такого размера.", "Можно задать только ширину или только высоту.", "Координаты видны в подсказке."],
+    examples: [["Ш 56, В 56", "Все объекты 56 × 56 — например, все иконки или аватарки такого размера."], ["<code>Header</code> + Ш 375", "Хедеры шириной 375 px."]] },
+  { id: "color", group: "Данные в базе", title: "Цвет", status: "search",
+    what: "Верхняя видимая сплошная заливка (у текста — цвет текста) и обводка: HEX, прозрачность и источник — <b>стиль</b> (с названием), <b>переменная</b> или <b>вручную</b>.",
+    how: ["Впишите HEX в поле цвета (<code>#FF3366</code> или коротко <code>F36</code>) или нажмите квадратик — откроется пикер с палитрой, пипеткой и ползунком «Отклонение».",
+          "<b>Отклонение:</b> 0% — только точно этот цвет; до 5% — незаметные на глаз отличия; 10–15% — близкие оттенки; 25–30% — заметно разные оттенки. Считается так, как цвета различает глаз (100% — чёрный от белого).",
+          "Совпадением считается и заливка, и цвет текста, и обводка. Прозрачность не мешает: #FF3366 найдёт этот цвет и при 50%.",
+          "Фильтры «Цвет заливки», «Источник цвета» и «Стиль цвета» уточняют результат.",
+          "Только у макетов, загруженных в новом формате."],
+    examples: [["Цвет <code>#FF006F</code>", "Все объекты этого цвета."], ["Цвет <code>#000000</code> ±10%", "Чёрный и почти чёрные (#1A1A1A и т. п.)."], ["Цвет + Источник цвета = Вручную", "Где цвет задан без стиля и переменной — кандидаты на замену стилем."], ["<code>Card</code> + цвет <code>#FFFFFF</code>", "Белые карточки."]] },
+  { id: "path", group: "Данные в базе", title: "Путь и родитель-инстанс", status: "tip",
+    what: "Полный путь по фреймам до объекта и инстанс, внутри которого он лежит.",
+    how: ["Видно в подсказке при наведении на название результата."] },
+  { id: "font", group: "Данные в базе", title: "Типографика", status: "tip",
+    what: "У текстов — шрифт, начертание, вес, кегль, межстрочный интервал, трекинг и текстовый стиль (или «задан вручную»).",
+    how: ["Видно в подсказке: например, «Ubuntu · Bold · 16 px · интерлиньяж 21», стиль «Bold/H6»."],
+    later: "Все тексты 14 px Medium; тексты без стиля (технический долг); где используется стиль «Body/M»." },
+  { id: "image", group: "Данные в базе", title: "Какая картинка", status: "tip",
+    what: "Идентификатор изображения в Figma. Он одинаковый у всех слоёв с одной и той же картинкой, даже если слои названы по-разному.",
+    how: ["Видно в подсказке (начало идентификатора). Картинки сами по себе ищутся по названию — группа «Картинки»."],
+    later: "Все места, где стоит та же картинка; дубликаты; где используется баннер, который нужно заменить." },
+  { id: "radius", group: "Данные в базе", title: "Скругление углов", status: "tip",
+    what: "Радиус скругления — один на все углы или по каждому: <code>8 / 8 / 0 / 0</code> (верхний левый, верхний правый, нижний правый, нижний левый).",
+    how: ["Видно в подсказке."], later: "Все карточки с радиусом 12; объекты с разными радиусами углов." },
+  { id: "opacity", group: "Данные в базе", title: "Прозрачность слоя", status: "tip",
+    what: "Opacity всего слоя, если она меньше 100%. Это не прозрачность заливки — она хранится вместе с цветом.",
+    how: ["Видно в подсказке."], later: "Все полупрозрачные слои; слои с прозрачностью 50%." },
+  { id: "effects", group: "Данные в базе", title: "Тени и размытия", status: "tip",
+    what: "Эффекты слоя: тень, внутренняя тень, размытие слоя или фона. Сохраняется стиль эффекта (с названием) или параметры, если эффект задан вручную.",
+    how: ["Видно в подсказке: «стиль «Shadow/L»» или «тень (вручную)»."], later: "Тени без стиля; где используется «Shadow/L»." },
+  { id: "layout", group: "Данные в базе", title: "Auto layout", status: "tip",
+    what: "У фреймов с auto layout — направление (горизонтально/вертикально), расстояние между элементами (gap), отступы, перенос строк и выравнивание.",
+    how: ["Видно в подсказке: «вертикально, gap 8, отступы 16 / 16 / 16 / 16»."], later: "Фреймы с gap 8; фреймы без auto layout." },
+  { id: "dev", group: "Данные в базе", title: "Статус Dev Mode", status: "tip",
+    what: "Отметка «Ready for dev» или «Completed» у секций и фреймов.",
+    how: ["Видно в подсказке."], later: "Фильтр «готово к разработке / в работе»." },
+  { id: "overrides", group: "Данные в базе", title: "Изменённый инстанс", status: "tip",
+    what: "Меняли ли в инстансе что-то относительно мастер-компонента: текст, цвет, видимость вложенных слоёв и т. п.",
+    how: ["Видно в подсказке: «изменён относительно мастера»."], later: "Только «чистые» или только изменённые инстансы компонента." },
+  { id: "prototype", group: "Данные в базе", title: "Связи прототипа", status: "tip",
+    what: "На какие экраны ведёт клик по слою в прототипе.",
+    how: ["Видно в подсказке: сколько экранов."], later: "Какие экраны ведут на этот экран; кнопки без перехода." },
+];
+
+const plain = (h) => h.replace(/<[^>]+>/g, "");
+const fullText = (t) => plain([t.title, t.what, ...(t.how || []), t.later || "", ...(t.examples || []).flat()].join(" ")).toLowerCase();
+TOPICS.forEach((t) => { t._text = fullText(t); });
+let current = TOPICS[0].id;
+
+function hl(html, q) {
+  if (!q) return html;
+  // подсветка только в тексте, не внутри тегов
+  const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+  return html.replace(/(<[^>]+>)|([^<]+)/g, (m, tag, text) => tag || text.replace(re, (x) => `<mark>${x}</mark>`));
+}
+function matches() {
+  const q = $("fq").value.trim().toLowerCase();
+  return { q, list: q ? TOPICS.filter((t) => t._text.includes(q)) : TOPICS };
+}
+function renderNav() {
+  const { q, list } = matches();
+  let html = "", group = "";
+  for (const t of list) {
+    if (t.group !== group) { group = t.group; html += `<div class="nav-group">${esc(group)}</div>`; }
+    html += `<button type="button" role="tab" class="nav-item${t.id === current ? " on" : ""}" data-id="${t.id}" aria-selected="${t.id === current}">
+      ${t.status ? `<i class="dot2 ${t.status === "search" ? "search" : ""}"></i>` : ""}<span class="t">${hl(esc(t.title), q)}</span></button>`;
+  }
+  $("navList").innerHTML = html || `<div class="nav-empty">Ничего не найдено по «${esc(q)}».</div>`;
+  $("navList").querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => select(b.dataset.id)));
+}
+function renderTopic() {
+  const t = TOPICS.find((x) => x.id === current) || TOPICS[0];
+  const q = $("fq").value.trim();
+  const badge = t.status === "search" ? '<span class="badge search">Ищется</span>' : t.status === "tip" ? '<span class="badge tip">В подсказке</span>' : "";
+  const i = TOPICS.indexOf(t), prev = TOPICS[i - 1], next = TOPICS[i + 1];
+  $("topic").innerHTML = hl(`<div class="crumb">${esc(t.group)}</div>
+    <div class="topic-h"><h2>${esc(t.title)}</h2>${badge}</div>
+    <h3>Что это</h3><p>${t.what}</p>
+    ${t.how && t.how.length ? `<h3>${t.status ? "Как работает и как искать" : "Подробнее"}</h3><ul>${t.how.map((x) => `<li>${x}</li>`).join("")}</ul>` : ""}
+    ${t.examples ? `<h3>Примеры</h3><div class="ex">${t.examples.map(([a, b]) => `<div class="ex-row"><div>${a}</div><div>${b}</div></div>`).join("")}</div>` : ""}
+    ${t.later ? `<div class="later"><b>Поиск появится позже:</b> ${t.later} Перезагружать макеты для этого не понадобится.</div>` : ""}`, q)
+    + `<div class="pn"><button type="button" data-id="${prev ? prev.id : ""}"${prev ? "" : " hidden"}>← ${prev ? esc(prev.title) : ""}</button>
+       <button type="button" data-id="${next ? next.id : ""}"${next ? "" : " hidden"}>${next ? esc(next.title) : ""} →</button></div>`;
+  $("topic").querySelectorAll(".pn button[data-id]").forEach((b) => b.addEventListener("click", () => { if (b.dataset.id) select(b.dataset.id, true); }));
+}
+function select(id, scroll) {
+  current = id;
+  history.replaceState(null, "", "#" + id);
+  renderNav(); renderTopic();
+  if (scroll && $("topic").getBoundingClientRect().top < 0) $("topic").scrollIntoView({ block: "start" });
+}
+$("fq").addEventListener("input", () => {
+  const { list } = matches();
+  if (list.length && !list.some((t) => t.id === current)) current = list[0].id;  // открыть первую подходящую тему
+  renderNav(); renderTopic();
+});
+$("fq").addEventListener("keydown", (e) => {
+  const { list } = matches();
+  const i = list.findIndex((t) => t.id === current);
+  if (e.key === "ArrowDown" && list[i + 1]) { e.preventDefault(); select(list[i + 1].id); }
+  if (e.key === "ArrowUp" && list[i - 1]) { e.preventDefault(); select(list[i - 1].id); }
+});
+addEventListener("hashchange", () => { const id = location.hash.slice(1); if (TOPICS.some((t) => t.id === id)) { current = id; renderNav(); renderTopic(); } });
+const fromHash = location.hash.slice(1);
+if (TOPICS.some((t) => t.id === fromHash)) current = fromHash;
+renderNav(); renderTopic();
+
+// Высота списка тем — по видимой части окна: весь блок (с поиском и легендой) помещается на экране,
+// а полоса прокрутки появляется, как только список не влезает.
+function fitNav() {
+  const nav = document.querySelector(".nav"), list = $("navList");
+  if (getComputedStyle(nav).position !== "sticky") { list.style.maxHeight = ""; return; }
+  const top = Math.max(nav.getBoundingClientRect().top, 16);
+  const rest = nav.offsetHeight - list.offsetHeight;  // поиск и легенда
+  list.style.maxHeight = Math.max(160, innerHeight - top - rest - 16) + "px";
+}
+addEventListener("scroll", fitNav, { passive: true });
+addEventListener("resize", fitNav);
+fitNav();
+
+beat();
+</script>
+</body>
+</html>

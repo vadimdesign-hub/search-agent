@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поиск инстансов</title>
+<style>
+  :root {
+    --bg: #f5f5f0; --surface: #ffffff; --surface-2: #eef1ea; --text: #1f2620; --muted: #6e746c;
+    --faint: #9aa097; --line: #e2e4dc; --accent: #2f4a36; --accent-soft: #5d7d62; --accent-bg: #e7ede4;
+    --accent-text: #ffffff; --warn: #8a5a12; --warn-bg: #f7efdf; --err: #9c2f2b; --err-bg: #f7e6e3;
+    --focus: rgba(47, 74, 54, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141714; --surface: #1c201c; --surface-2: #222822; --text: #e8ebe5; --muted: #a0a79d;
+      --faint: #767d73; --line: #2e342e; --accent: #9cc3a2; --accent-soft: #7fa585; --accent-bg: #223027;
+      --accent-text: #122016; --warn: #e8c07c; --warn-bg: #33291a; --err: #f0a39c; --err-bg: #3a1f1d;
+      --focus: rgba(156, 195, 162, .22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1120px; margin: 0 auto; padding: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+          display: grid; place-items: center; font-size: 18px; }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); }
+  .live.down .dot { background: var(--err); }
+  .live.checking .dot { background: var(--faint); }
+  .live.up .dot { box-shadow: 0 0 0 3px var(--accent-bg); }
+  #live.down { color: var(--err); }
+  .variants { display: flex; gap: 4px; margin-left: 12px; font-size: 13px; font-weight: 600; }
+  .variants a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  .variants a.on { background: var(--surface-2); color: var(--accent); }
+  .lives { display: flex; gap: 20px; align-items: center; }
+  #plugin.down .dot { background: var(--faint); }
+  .actions { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+  .ghost { padding: 7px 14px; background: var(--surface); color: var(--accent); border: 1px solid var(--line); font-size: 14px; }
+  .ghost:hover { border-color: var(--accent-soft); }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .head .count { margin: 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: min(560px, calc(100% - 32px));
+           background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 12px; font-size: 14px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 10; }
+  .toast.err { background: var(--err); color: #fff; }
+  .toast[hidden] { display: none; }
+  ol.steps { margin: 8px 0 0; padding-left: 20px; }
+  ol.steps li + li { margin-top: 4px; }
+  @media (max-width: 560px) { .live span:last-child { display: none; } .lives { gap: 10px; } }
+
+  main { max-width: 800px; margin: 0 auto; padding: 56px 16px 80px; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-soft); margin: 0 0 12px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; }
+  .lead { color: var(--muted); font-size: 17px; margin: 0 0 32px; max-width: 560px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .field + .field { margin-top: 20px; }
+  input[type=text], input[type=password] {
+    width: 100%; min-width: 0; padding: 12px 14px; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; transition: border-color .15s, box-shadow .15s; }
+  input:focus { outline: none; border-color: var(--accent-soft); box-shadow: 0 0 0 4px var(--focus); }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .row { display: flex; gap: 12px; }
+  .row input { flex: 1; }
+  @media (max-width: 560px) { .row { flex-direction: column; } }
+
+  button { font: inherit; font-weight: 600; border-radius: 10px; cursor: pointer; border: 0; }
+  .primary { padding: 12px 22px; background: var(--accent); color: var(--accent-text); white-space: nowrap; transition: opacity .15s; }
+  .primary:disabled { opacity: .45; cursor: default; }
+  .link { background: none; padding: 0; color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .check label { margin: 0; font-weight: 400; font-size: 13px; }
+  .check input { accent-color: var(--accent); }
+
+  .block { margin-top: 16px; border-radius: 16px; padding: 20px 24px; background: var(--surface-2); border: 1px solid var(--line); }
+  .block.err { background: var(--err-bg); color: var(--err); border-color: transparent; }
+  .block.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .block.ok { background: var(--accent-bg); border-color: transparent; }
+  .block b { font-weight: 600; }
+  .progress { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 14px 0 12px; }
+  .progress i { display: block; height: 100%; width: 32%; border-radius: 4px; background: var(--accent-soft);
+                animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+  .timing { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .timing b { color: var(--text); font-weight: 600; }
+  .block.err .timing, .block.warn .timing { border-top-color: currentColor; opacity: .85; color: inherit; }
+  .block.err .timing b, .block.warn .timing b { color: inherit; }
+  .sub { color: var(--muted); font-size: 13px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+
+  .results { margin-top: 32px; }
+  .count { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px; }
+  ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .item { padding: 16px 20px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item .body { min-width: 0; }
+  .name { font-weight: 600; word-break: break-word; }
+  .path { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-word; }
+  .id { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 6px; }
+  .tags { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; vertical-align: 1px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .tag.hidden { background: var(--warn-bg); color: var(--warn); }
+  .open { white-space: nowrap; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--accent); }
+  .open:hover { text-decoration: underline; }
+  .cand { cursor: pointer; transition: background .15s; }
+  .cand:hover { background: var(--surface-2); }
+  @media (max-width: 560px) { .item { flex-direction: column; gap: 8px; } }
+
+  details.conn { margin-top: 32px; }
+  details.conn summary { cursor: pointer; font-size: 14px; color: var(--muted); list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.conn summary::-webkit-details-marker { display: none; }
+  details.conn summary::before { content: "▸"; font-size: 14px; line-height: 1; transition: transform .15s; }
+  details.conn[open] summary::before { transform: rotate(90deg); }
+  details.conn .card { margin-top: 12px; }
+  #settingsMsg:empty { display: none; }
+  #settingsMsg.err { color: var(--err); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="logo" aria-hidden="true">⌘</span>Search Agent
+      <nav class="variants"><a href="/" class="on">1 · через API</a><a href="/plugin">2 · без скачивания</a><a href="/experiment">Эксперимент</a><a href="/settings">Настройки</a></nav></div>
+    <div class="lives">
+      <div class="live down" id="plugin" title="Плагин нужен, чтобы выделять найденные объекты в Figma"><span class="dot"></span><span id="pluginText">Плагин Figma не запущен</span></div>
+      <div class="live checking" id="live" title="Проверяем, запущен ли локальный сервер"><span class="dot"></span><span id="liveText">Проверяем сервер…</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <p class="eyebrow">Figma instance finder</p>
+  <h1>Один компонент. Все инстансы.</h1>
+  <p class="lead">Вставьте ссылку на макет и название мастер-компонента. Найдём экземпляры во всём файле или только внутри выбранного элемента.</p>
+
+  <form id="form" class="card" autocomplete="off">
+    <div class="field">
+      <label for="fileUrl">Ссылка на макет</label>
+      <input type="text" id="fileUrl" placeholder="https://www.figma.com/design/…" required>
+      <p class="hint" id="scopeHint"></p>
+    </div>
+    <div class="field">
+      <label for="name">Название мастер-компонента</label>
+      <div class="row">
+        <input type="text" id="name" placeholder="Например, Button" required>
+        <button type="submit" class="primary" id="go">Найти инстансы ↗</button>
+      </div>
+      <p class="hint">Точное название с учётом регистра. Для набора вариантов — название набора.</p>
+    </div>
+    <div class="check">
+      <input type="checkbox" id="hideHidden"><label for="hideHidden">Не показывать скрытые объекты (сам слой или его родитель скрыт)</label>
+    </div>
+    <div class="check" style="margin-top:8px">
+      <input type="checkbox" id="refresh"><label for="refresh">Загрузить заново из Figma (иначе данные берутся из кэша на 5 минут)</label>
+    </div>
+  </form>
+
+  <div id="status" aria-live="polite"></div>
+  <div id="results"></div>
+  <div class="toast" id="toast" hidden role="status"></div>
+
+  <details class="conn" id="settings">
+    <summary id="connSummary">Подключение к Figma</summary>
+    <form id="settingsForm" class="card" autocomplete="off">
+      <label for="token">Персональный токен Figma</label>
+      <div class="row">
+        <input type="password" id="token" autocomplete="new-password" placeholder="figd_…">
+        <button type="submit" class="primary" id="save">Сохранить</button>
+      </div>
+      <p class="hint">Figma → Settings → Security → Personal access tokens, доступ file_content:read. Токен хранится только в локальном config.json и нигде не показывается.</p>
+      <p class="hint" id="settingsMsg"></p>
+    </form>
+  </details>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+// Страницу можно открыть и как файл (file://) — тогда обращаемся к локальному серверу напрямую.
+const API = /^https?:$/.test(location.protocol) ? "" : "http://127.0.0.1:8000";
+const NO_SERVER = "локальный сервер не отвечает. Запустите его командой <code>.venv/bin/python -m app</code> в папке agent-search и откройте <a href=\"http://127.0.0.1:8000\">http://127.0.0.1:8000</a>.";
+const DEFAULT_HINT = "Скопируйте ссылку на нужный элемент в Figma (Copy link to selection). Ссылка без выбранного элемента — поиск по всему файлу.";
+// Сервер работает, только пока открыта эта страница: сообщаем ему, что она открыта,
+// а при закрытии — что закрыта. Первый же запрос запускает сервер (служба macOS).
+const PAGE_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2);
+function uptimeText(sec) {
+  if (sec < 60) return "только что";
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
+}
+function showServer(info) {
+  $("live").className = "live up";
+  $("liveText").textContent = `Сервер запущен · ${uptimeText(info.uptime_s || 0)}`;
+  $("live").title = [
+    `Локальный сервер работает ${uptimeText(info.uptime_s || 0)} (процесс ${info.pid})`,
+    `Открытых страниц: ${info.pages_open}`,
+    info.on_demand ? "Запущен автоматически — остановится, когда закроете страницу" : "Запущен вручную",
+  ].join("\n");
+}
+function beat() {
+  fetch(API + "/api/heartbeat", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: PAGE_ID }),
+  }).then((r) => r.json()).then(showServer).catch(() => setLive(false));
+}
+setInterval(beat, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+addEventListener("pagehide", () => {
+  navigator.sendBeacon(API + "/api/bye", new Blob([JSON.stringify({ page: PAGE_ID })], { type: "text/plain" }));
+});
+// Переключатель вариантов работает и при открытии index.html как файла.
+document.querySelectorAll(".variants a").forEach((a) => { a.href = (API || "") + a.getAttribute("href"); });
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+// Ссылки открываем сразу в приложении Figma (схема figma://), без лишней вкладки в браузере.
+// Приложение заменяет «figma://» на «https://www.figma.com/» и открывает файл у себя.
+const appUrl = (url) => String(url || "").replace(/^https:\/\/(www\.)?figma\.com\//, "figma://");
+let lastName = "";
+let lastUrl = "";
+let configured = false;
+let controller = null;
+let timer = null;
+let startedAt = 0;  // момент нажатия «Найти инстансы»
+let pluginOn = false;
+let lastResult = null;  // последний успешный ответ поиска (для выделения в Figma)
+
+// Галочка «Не показывать скрытые» запоминается в браузере.
+try { $("hideHidden").checked = localStorage.getItem("hideHidden") === "1"; } catch {}
+$("hideHidden").addEventListener("change", () => {
+  try { localStorage.setItem("hideHidden", $("hideHidden").checked ? "1" : "0"); } catch {}
+});
+
+const sec = (v) => (v < 10 ? v.toFixed(2) : v.toFixed(1)).replace(".", ",") + " с";
+
+// «Готово за 3,42 с · загрузка из Figma 3,30 с · поиск 0,01 с · проверено инстансов: 120»
+function timingLine(d, totalS, prefix) {
+  const parts = [`<b>${prefix} ${sec(totalS)}</b>`];
+  const t = d && d.timing;
+  if (t) {
+    parts.push(t.from_cache ? "данные из кэша, без запроса к Figma" : `загрузка из Figma ${sec(t.load_s)}`);
+    parts.push(`поиск ${sec(t.search_s)}`);
+    const other = totalS - t.load_s - t.search_s;
+    if (other >= 0.05) parts.push(`передача и отрисовка ${sec(other)}`);
+    parts.push(`проверено инстансов: ${t.instances_scanned}`);
+  }
+  return `<div class="timing">${parts.join(" · ")}</div>`;
+}
+
+function setStatus(kind, html) {
+  $("status").innerHTML = html ? `<div class="block ${kind}">${html}</div>` : "";
+}
+
+function setLive(ok) {
+  if (ok) {
+    if (!$("live").classList.contains("up")) { $("live").className = "live up"; $("liveText").textContent = "Сервер запущен"; }
+    return;
+  }
+  $("live").className = "live down";
+  $("liveText").textContent = "Сервер не отвечает";
+  $("live").title = "Локальный сервер не отвечает. Если автозапуск установлен, обновите страницу — сервер запустится сам.";
+}
+
+function applyState(r) {
+  configured = r.configured;
+  if (!$("fileUrl").value) $("fileUrl").value = r.file_url || "";
+  $("token").value = "";
+  $("token").placeholder = r.configured ? "Токен сохранён — оставьте пустым, чтобы не менять" : "figd_…";
+  $("connSummary").textContent = `Подключение к Figma · ${r.configured ? "токен сохранён" : "токен не задан"}`;
+  if (r.env_overrides && r.env_overrides.length)
+    $("settingsMsg").textContent = `Заданы переменные окружения ${r.env_overrides.join(", ")} — они важнее сохранённых настроек.`;
+  if (!r.configured) { $("settings").open = true; setStatus("warn", esc(r.message)); }
+  updateScopeHint();
+}
+
+// Подсказка, где будет искать инструмент, — сразу по вставленной ссылке.
+function updateScopeHint() {
+  const v = $("fileUrl").value.trim();
+  let text = DEFAULT_HINT;
+  if (v) {
+    let node = null;
+    try { node = new URL(v.includes("://") ? v : "https://" + v).searchParams.get("node-id"); } catch {}
+    text = node
+      ? `Поиск только внутри выбранного элемента (${node.replaceAll("-", ":")}) — страницы, секции или фрейма. Загружается только он.`
+      : "Поиск по всему файлу: в ссылке нет выбранного элемента. Для большого файла загрузка может быть долгой.";
+  }
+  $("scopeHint").textContent = text;
+}
+$("fileUrl").addEventListener("input", updateScopeHint);
+
+async function checkConfig() {
+  try { applyState(await (await fetch(API + "/api/status")).json()); setLive(true); }
+  catch { setLive(false); setStatus("err", "Не удалось загрузить настройки: " + NO_SERVER); }
+}
+
+$("settingsForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("save").disabled = true;
+  $("settingsMsg").className = "hint";
+  $("settingsMsg").textContent = "Сохранение…";
+  try {
+    const resp = await fetch(API + "/api/settings", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: $("token").value || null }),
+    });
+    const r = await resp.json();
+    if (r.status === "error") {
+      $("settingsMsg").className = "hint err";
+      $("settingsMsg").textContent = r.message;
+    } else {
+      $("settingsMsg").textContent = r.configured ? "Сохранено." : "";
+      applyState(r);
+      if (r.configured) { $("settings").open = false; setStatus("", ""); ($("fileUrl").value ? $("name") : $("fileUrl")).focus(); }
+    }
+  } catch {
+    $("settingsMsg").className = "hint err";
+    $("settingsMsg").innerHTML = "Не сохранено: " + NO_SERVER;
+  }
+  $("save").disabled = false;
+});
+
+function pathText(page, path) {
+  return [page, ...(path || [])].filter(Boolean).map(esc).join(" / ");
+}
+
+function showLoading(title) {
+  const started = Date.now();
+  setStatus("", `<div>${esc(title)}</div><div class="progress"><i></i></div>
+    <div class="sub"><span id="elapsed">Прошло 0 с · максимум 3 минуты</span><button type="button" class="link" id="stop">Остановить</button></div>`);
+  $("stop").addEventListener("click", () => controller && controller.abort());
+  timer = setInterval(() => {
+    const el = $("elapsed");
+    if (el) el.textContent = `Прошло ${Math.round((Date.now() - started) / 1000)} с · максимум 3 минуты`;
+  }, 1000);
+}
+
+async function search(candidateId) {
+  if (!configured) { $("settings").open = true; setStatus("warn", "Сначала сохраните токен в разделе «Подключение к Figma»."); return; }
+  const name = candidateId ? lastName : $("name").value.trim();
+  if (!candidateId) lastUrl = $("fileUrl").value.trim();
+  if (!lastUrl) { setStatus("err", "Вставьте ссылку на Figma-файл, страницу, секцию или фрейм."); return; }
+  if (!name) { setStatus("err", "Введите название мастер-компонента."); return; }
+  lastName = name;
+  const scoped = /[?&]node-id=/.test(lastUrl);
+  $("go").disabled = true;
+  $("results").innerHTML = "";
+  startedAt = performance.now();
+  showLoading(candidateId ? "Ищем инстансы…" : scoped ? "Загружаем выбранный элемент из Figma…" : "Загружаем весь файл из Figma…");
+  controller = new AbortController();
+  let data = null;
+  try {
+    const resp = await fetch(API + "/api/search", {
+      method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal,
+      body: JSON.stringify({ name, file_url: lastUrl, candidate_id: candidateId || null, refresh: $("refresh").checked, exclude_hidden: $("hideHidden").checked }),
+    });
+    data = await resp.json();
+    setLive(true);
+  } catch (e) {
+    const spent = timingLine(null, (performance.now() - startedAt) / 1000, "Прошло");
+    if (e.name === "AbortError") setStatus("warn", "Поиск остановлен. Результатов нет — запустите поиск заново." + spent);
+    else { setLive(false); setStatus("err", "Поиск не выполнен: " + NO_SERVER); }
+  } finally {
+    clearInterval(timer);
+    controller = null;
+    $("go").disabled = false;
+  }
+  if (!data) return;
+  $("refresh").checked = false;
+  render(data);
+  // Время считаем после отрисовки — ровно то, сколько вы ждали результат.
+  requestAnimationFrame(() => {
+    const total = (performance.now() - startedAt) / 1000;
+    const block = $("status").querySelector(".block");
+    if (block) block.insertAdjacentHTML("beforeend", timingLine(data, total, data.status === "error" ? "Прошло" : "Готово за"));
+  });
+}
+
+function fileMeta(d) {
+  return d.file ? `<div class="sub" style="margin-top:8px">${esc(d.file.name)} · ${esc(d.file.scope_label)} · данные на ${esc(d.file.fetched_at)}</div>` : "";
+}
+
+function render(d) {
+  if (d.status === "error") return setStatus("err", `<b>Поиск не выполнен.</b> ${esc(d.message)}`);
+  if (d.status === "not_found") return setStatus("err", `<b>Компонент не найден.</b> ${esc(d.message)}${fileMeta(d)}`);
+  if (d.status === "unresolved") return setStatus("warn", `<b>Компонент не удалось определить.</b> ${esc(d.message)}${fileMeta(d)}`);
+  if (d.status === "ambiguous") return renderCandidates(d);
+
+  const c = d.component;
+  const kind = c.kind === "component_set" ? `набор вариантов (${c.variant_count})` : "компонент";
+  const src = c.remote ? "из библиотеки" : c.node_id ? `локальный: ${pathText(c.page, c.path)}` : "мастер-компонент вне области поиска";
+  const compLink = c.url ? ` · <a href="${esc(appUrl(c.url))}">мастер в Figma</a>` : "";
+  const about = `«${esc(c.name)}» — ${kind}, ${src}${compLink}${fileMeta(d)}`;
+
+  const skipped = d.hidden_skipped ? `<div class="sub" style="margin-top:6px">Скрытых не показано: ${d.hidden_skipped}</div>` : "";
+  if (d.count === 0) return setStatus("warn", `<b>Компонент найден, ${d.hidden_skipped ? "видимых " : ""}инстансов нет.</b> ${about}${skipped}`);
+  setStatus("ok", about + skipped);
+
+  const items = d.instances.map((i) => {
+    const tags = [];
+    if (i.variant) tags.push(`<span class="tag">${esc(i.variant)}</span>`);
+    if (i.hidden) tags.push(`<span class="tag hidden">скрыт</span>`);
+    if (i.renamed) tags.push(`<span class="tag">переименован</span>`);
+    if (i.inside_master) tags.push(`<span class="tag">в мастер-компоненте «${esc(i.inside_master)}»</span>`);
+    const parent = i.parent_instance
+      ? `<div class="path">Вложен в инстанс «${esc(i.parent_instance.name)}» · <a href="${esc(appUrl(i.parent_instance.url))}">открыть родителя</a></div>` : "";
+    return `<li class="item"><div class="body">
+        <div class="name">${esc(i.name)}<span class="tags">${tags.join("")}</span></div>
+        <div class="path">${pathText(i.page, i.path)}</div>${parent}
+        <div class="id">${esc(i.id)}</div>
+      </div><div class="actions">
+        <button type="button" class="ghost sel" data-id="${esc(i.id)}">Выделить</button>
+        <a class="open go-figma" data-id="${esc(i.id)}" href="${esc(appUrl(i.url))}" title="Открывается в приложении Figma">Открыть в Figma ↗</a>
+      </div></li>`;
+  }).join("");
+  lastResult = d;
+  $("results").innerHTML = `<div class="results"><div class="head"><span class="count">Найдено инстансов: ${d.count}</span>
+    <button type="button" class="ghost" id="selAll">Выделить все в Figma</button></div><ul class="list">${items}</ul></div>`;
+  $("selAll").addEventListener("click", () => selectInFigma(d.instances.map((i) => i.id)));
+  // «Выделить» — только через плагин, без перехода по ссылке: Figma нечем перебить выделение.
+  document.querySelectorAll(".sel").forEach((b) => b.addEventListener("click", () => selectInFigma([b.dataset.id])));
+  // Ссылка сама не выделяет вложенный слой (Figma открывает родительский фрейм),
+  // поэтому, если плагин запущен, выделяем объект через него: плагин переключит
+  // страницу, выделит слой, приблизит к нему и повторит выделение после перехода.
+  document.querySelectorAll(".go-figma").forEach((a) => a.addEventListener("click", () => {
+    if (pluginOn) selectInFigma([a.dataset.id]);
+    else toast("Чтобы объект выделялся при переходе, запустите в Figma плагин «Search Agent — выделение».", false, 6000);
+  }));
+}
+
+function renderCandidates(d) {
+  setStatus("warn", esc(d.message));
+  const items = d.candidates.map((c) => {
+    const kind = c.kind === "component_set" ? `Набор вариантов · вариантов: ${c.variant_count}` : "Компонент";
+    const src = c.remote ? "Из библиотеки" : c.node_id ? `Локальный · ${pathText(c.page, c.path)}` : "Мастер-компонент вне области поиска";
+    return `<li class="item cand" data-id="${esc(c.id)}" tabindex="0"><div class="body">
+        <div class="name">${esc(c.name)}</div>
+        <div class="path">${kind} · ${src}</div>
+        ${c.description ? `<div class="path">${esc(c.description)}</div>` : ""}
+        ${c.node_id ? `<div class="id">${esc(c.node_id)}</div>` : ""}
+      </div><span class="open">Выбрать →</span></li>`;
+  }).join("");
+  $("results").innerHTML = `<div class="results"><ul class="list">${items}</ul></div>`;
+  document.querySelectorAll(".cand").forEach((el) => {
+    const pick = () => search(el.dataset.id);
+    el.addEventListener("click", pick);
+    el.addEventListener("keydown", (e) => { if (e.key === "Enter") pick(); });
+  });
+}
+
+let toastTimer = null;
+function toast(html, isErr, ms = 4000) {
+  const t = $("toast");
+  t.innerHTML = html;
+  t.className = "toast" + (isErr ? " err" : "");
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, ms);
+}
+
+const PLUGIN_HELP = `<b>Запустите плагин в Figma</b>, чтобы выделять объекты:
+  <ol class="steps">
+    <li>Откройте нужный файл в приложении Figma для компьютера.</li>
+    <li>Первый раз: Plugins → Development → Import plugin from manifest… → файл <code>agent-search/figma-plugin/manifest.json</code>.</li>
+    <li>Запустите Plugins → Development → «Search Agent — выделение» и не закрывайте его окно.</li>
+  </ol>`;
+
+function setPlugin(on) {
+  pluginOn = on;
+  $("plugin").classList.toggle("down", !on);
+  $("pluginText").textContent = on ? "Плагин Figma подключён" : "Плагин Figma не запущен";
+}
+
+async function refreshPlugin() {
+  try { setPlugin((await (await fetch(API + "/api/figma/status")).json()).plugin_connected); }
+  catch { setPlugin(false); }
+}
+setInterval(refreshPlugin, 3000);
+
+async function selectInFigma(ids) {
+  if (!lastResult || !ids.length) return;
+  let r;
+  try {
+    r = await (await fetch(API + "/api/figma/select", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ file_key: lastResult.file.key, node_ids: ids }),
+    })).json();
+  } catch { return toast("Не удалось отправить: " + NO_SERVER, true, 6000); }
+  setPlugin(r.plugin_connected);
+  if (!r.plugin_connected) return setStatus("warn", PLUGIN_HELP);
+  toast(ids.length > 1 ? `Выделяем в Figma: ${ids.length}…` : "Выделяем в Figma…", false);
+  // Ждём ответ плагина до 10 секунд.
+  for (let n = 0; n < 20; n++) {
+    await new Promise((res) => setTimeout(res, 500));
+    try {
+      const st = await (await fetch(API + "/api/figma/status")).json();
+      if (st.seq !== r.seq) return;  // уже отправлен новый запрос
+      if (st.result) return toast(esc(st.result.message) + (st.result.ok ? " — переключитесь в Figma" : ""), !st.result.ok);
+    } catch {}
+  }
+  toast("Плагин не ответил. Проверьте, что он запущен в Figma.", true);
+}
+
+$("form").addEventListener("submit", (e) => { e.preventDefault(); search(null); });
+refreshPlugin();
+updateScopeHint();
+beat();
+checkConfig();
+</script>
+</body>
+</html>

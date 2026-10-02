@@ -1,0 +1,1312 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Поиск по макетам</title>
+<style>
+  /* Место под полосу прокрутки есть всегда — при переходе между страницами вёрстка не сдвигается. */
+  html { scrollbar-gutter: stable; }
+  :root {
+    --bg: #f5f5f0; --surface: #ffffff; --surface-2: #eef1ea; --text: #1f2620; --muted: #6e746c;
+    --faint: #9aa097; --line: #e2e4dc; --accent: #2f4a36; --accent-soft: #5d7d62; --accent-bg: #e7ede4;
+    --accent-text: #ffffff; --warn: #8a5a12; --warn-bg: #f7efdf; --err: #9c2f2b; --err-bg: #f7e6e3;
+    --focus: rgba(47, 74, 54, .18);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141714; --surface: #1c201c; --surface-2: #222822; --text: #e8ebe5; --muted: #a0a79d;
+      --faint: #767d73; --line: #2e342e; --accent: #9cc3a2; --accent-soft: #7fa585; --accent-bg: #223027;
+      --accent-text: #122016; --warn: #e8c07c; --warn-bg: #33291a; --err: #f0a39c; --err-bg: #3a1f1d;
+      --focus: rgba(156, 195, 162, .22);
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+         -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+
+  header { background: var(--surface); border-bottom: 1px solid var(--line); }
+  .bar { max-width: 1120px; margin: 0 auto; padding: 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 700; font-size: 18px; letter-spacing: -.01em; }
+  .logo { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-text);
+          display: grid; place-items: center; font-size: 18px; }
+  .live { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent-soft); }
+  .live.down .dot { background: var(--err); }
+  .live.checking .dot { background: var(--faint); }
+  .live.up .dot { box-shadow: 0 0 0 3px var(--accent-bg); }
+  #live.down { color: var(--err); }
+  .variants { display: flex; gap: 4px; margin-left: 12px; font-size: 13px; font-weight: 600; }
+  .variants a { padding: 5px 10px; border-radius: 8px; color: var(--muted); text-decoration: none; }
+  .variants a.on { background: var(--surface-2); color: var(--accent); }
+  .lives { display: flex; gap: 20px; align-items: center; }
+  #plugin.down .dot { background: var(--faint); }
+  .actions { display: flex; gap: 16px; align-items: center; flex-shrink: 0; }
+  .ghost { padding: 7px 14px; background: var(--surface); color: var(--accent); border: 1px solid var(--line); font-size: 14px; }
+  .ghost:hover { border-color: var(--accent-soft); }
+  .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .head .count { margin: 0; }
+  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: max-content; max-width: min(560px, calc(100% - 32px));
+           background: var(--text); color: var(--bg); padding: 12px 18px; border-radius: 12px; font-size: 14px;
+           box-shadow: 0 8px 24px rgba(0,0,0,.18); z-index: 10; }
+  .toast.err { background: var(--err); color: #fff; }
+  .toast[hidden] { display: none; }
+  ol.steps { margin: 8px 0 0; padding-left: 20px; }
+  ol.steps li + li { margin-top: 4px; }
+  @media (max-width: 560px) { .live span:last-child { display: none; } .lives { gap: 10px; } }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 16px 80px; }
+  /* Заголовок и пояснение — по центру; блок поиска — на всю ширину, по краям колонок фильтров и результатов */
+  .hero > .eyebrow, .hero > h1 { text-align: center; }
+  .hero > .lead { text-align: center; font-size: 15px; max-width: 720px; margin: 0 auto 28px; text-wrap: balance; }
+  .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--accent-soft); margin: 0 0 12px; }
+  h1 { font-size: clamp(30px, 5vw, 44px); line-height: 1.1; letter-spacing: -.03em; margin: 0 0 16px; }
+  .lead { color: var(--muted); font-size: 17px; margin: 0 0 32px; max-width: 560px; }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 24px; }
+  label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
+  .field + .field { margin-top: 20px; }
+  input[type=text], input[type=password] {
+    width: 100%; min-width: 0; padding: 12px 14px; font: inherit; font-size: 16px; color: var(--text);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; transition: border-color .15s, box-shadow .15s; }
+  input:focus { outline: none; border-color: var(--accent-soft); box-shadow: 0 0 0 4px var(--focus); }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+  .row { display: flex; gap: 12px; }
+  .row input { flex: 1; }
+  @media (max-width: 560px) { .row { flex-direction: column; } }
+
+  button { font: inherit; font-weight: 600; border-radius: 10px; cursor: pointer; border: 0; }
+  .primary { padding: 12px 22px; background: var(--accent); color: var(--accent-text); white-space: nowrap; transition: opacity .15s; }
+  .primary:disabled { opacity: .45; cursor: default; }
+  /* Идёт поиск: вместо текста — крутилка, ширина кнопки не меняется. */
+  .primary.loading { position: relative; color: transparent; opacity: 1; }
+  .primary.loading::after { content: ""; position: absolute; inset: 0; margin: auto; width: 18px; height: 18px;
+    border: 2px solid var(--accent-text); border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .link { background: none; padding: 0; color: var(--accent); }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .check label { margin: 0; font-weight: 400; font-size: 13px; }
+  .check input { accent-color: var(--accent); }
+
+  .block { margin-top: 16px; border-radius: 16px; padding: 20px 24px; background: var(--surface-2); border: 1px solid var(--line); }
+  .block.err { background: var(--err-bg); color: var(--err); border-color: transparent; }
+  .block.warn { background: var(--warn-bg); color: var(--warn); border-color: transparent; }
+  .block.ok { background: var(--accent-bg); border-color: transparent; }
+  .block b { font-weight: 600; }
+  .progress { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; margin: 14px 0 12px; }
+  .progress i { display: block; height: 100%; width: 32%; border-radius: 4px; background: var(--accent-soft);
+                animation: slide 1.4s ease-in-out infinite; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(320%); } }
+  .timing { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .timing b { color: var(--text); font-weight: 600; }
+  .block.err .timing, .block.warn .timing { border-top-color: currentColor; opacity: .85; color: inherit; }
+  .block.err .timing b, .block.warn .timing b { color: inherit; }
+  .sub { color: var(--muted); font-size: 13px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+
+  .results { margin-top: 32px; }
+  .count { display: block; font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 12px; }
+  ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .item { padding: 16px 20px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item .body { min-width: 0; }
+  .name { font-weight: 600; word-break: break-word; }
+  .path { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-word; }
+  .id { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 6px; }
+  .tags { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; vertical-align: 1px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .tag.hidden { background: var(--warn-bg); color: var(--warn); }
+  .open { white-space: nowrap; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--accent); }
+  .open:hover { text-decoration: underline; }
+  .cand { cursor: pointer; transition: background .15s; }
+  .cand:hover { background: var(--surface-2); }
+  @media (max-width: 560px) { .item { flex-direction: column; gap: 8px; } }
+
+  details.conn { margin-top: 32px; }
+  details.conn summary { cursor: pointer; font-size: 14px; color: var(--muted); list-style: none; display: flex; gap: 8px; align-items: center; }
+  details.conn summary::-webkit-details-marker { display: none; }
+  details.conn summary::before { content: "▸"; font-size: 14px; line-height: 1; transition: transform .15s; }
+  details.conn[open] summary::before { transform: rotate(90deg); }
+  details.conn .card { margin-top: 12px; }
+  #settingsMsg:empty { display: none; }
+  #settingsMsg.err { color: var(--err); }
+  .links { list-style: none; margin: 16px 0 0; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .links:empty { display: none; }
+  .link-row { display: flex; gap: 12px; align-items: center; padding: 12px 16px; background: var(--surface); }
+  .link-row + .link-row { border-top: 1px solid var(--line); }
+  .link-row .body { min-width: 0; flex: 1; }
+  .link-row .title { font-weight: 600; }
+  .link-row .url { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 2px;
+                   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .link-row .meta { color: var(--muted); font-size: 13px; }
+  .link-row.new { animation: flash 1.2s ease-out; }
+  @keyframes flash { from { background: var(--accent-bg); } to { background: var(--surface); } }
+  .icon-btn { background: none; border: 0; color: var(--faint); font-size: 18px; line-height: 1; padding: 6px 8px; border-radius: 8px; }
+  .icon-btn:hover { color: var(--err); background: var(--err-bg); }
+  .paste { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+  .paste .preview { color: var(--muted); font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+  .paste[hidden] { display: none; }
+  .empty { color: var(--muted); font-size: 14px; margin: 16px 0 0; }
+  .add-row { display: flex; gap: 12px; margin-top: 16px; }
+  .add-row input { flex: 1; }
+  @media (max-width: 560px) { .add-row { flex-direction: column; } }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-top: 16px; }
+  .tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .tile .k { color: var(--muted); font-size: 12px; }
+  .tile .v { font-size: 22px; font-weight: 700; letter-spacing: -.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .tile .s { color: var(--faint); font-size: 12px; margin-top: 2px; }
+  .tile.hl { background: var(--accent-bg); border-color: transparent; }
+  h2 { font-size: 18px; margin: 32px 0 12px; letter-spacing: -.01em; }
+  table.t { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-size: 14px; }
+  table.t th, table.t td { text-align: left; padding: 9px 14px; border-top: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  table.t th { color: var(--muted); font-weight: 600; font-size: 12px; border-top: 0; background: var(--surface-2); }
+  table.t td.n, table.t th.n { text-align: right; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+  .scroll { overflow-x: auto; }
+  .pager { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+  .pg { min-width: 34px; height: 34px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface);
+        color: var(--text); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .pg:hover:not(:disabled) { border-color: var(--accent-soft); }
+  .pg.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .pg:disabled { opacity: .35; cursor: default; }
+  .pg-gap { color: var(--faint); padding: 0 4px; }
+  .pg-info { color: var(--muted); font-size: 13px; margin-left: 8px; }
+  /* Результаты: слева фильтры (как в интернет-магазинах), справа список */
+  .layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; align-items: start; margin-top: 16px; }
+  .layout.no-side { grid-template-columns: minmax(0, 1fr); }
+  .layout.no-side .side { display: none; }
+  /* Рамка и скругление — у самой прокручиваемой колонки: углы видны всегда, список прокручивается внутри */
+  .side { position: sticky; top: 16px; overflow: hidden;   /* рамка со скруглением обрезает содержимое и полосу прокрутки */
+          background: var(--surface); border: 1px solid var(--line); border-radius: 16px; }
+  .side:has(.facets:empty) { display: none; }
+  .res { min-width: 0; }
+  .res #sstatus .block { margin-top: 0; }
+  .facets { padding: 0 0 4px; max-height: calc(100vh - 34px); overflow-y: auto; overscroll-behavior: contain; }
+  /* Стандартные свойства — только для Firefox: в Chrome они отключают настройки ниже (отступы, скругление) */
+  @supports (-moz-appearance: none) { .facets { scrollbar-width: thin; scrollbar-color: var(--line) transparent; } }
+  /* Своя полоса прокрутки: тонкая, скруглённая, без дорожки, не упирается в углы */
+  .facets::-webkit-scrollbar { width: 12px; }
+  .facets::-webkit-scrollbar-track { background: transparent; margin: 20px 0; }
+  .facets::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; border: 4px solid var(--surface); min-height: 40px; }
+  .facets::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+  .facets::-webkit-scrollbar-corner { background: transparent; }
+  /* Никакого подчёркивания в фильтрах (даже если его пытается добавить браузер или расширение) */
+  .facets, .facets * { text-decoration: none !important; }
+  .facets:empty { display: none; }
+  .fhead { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px 12px; font-size: 15px;
+           position: sticky; top: 0; z-index: 3; background: var(--surface); }  /* всегда поверх заголовков блоков */
+  .fbox { border-top: 1px solid var(--line); }
+  .fbox-h { position: sticky; top: 48px; z-index: 2; background: var(--surface);  /* название блока видно, пока листается его список */
+            width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 12px 16px;
+            color: var(--text); font-size: 14px; font-weight: 600; text-align: left; border-radius: 0; }
+  .fbox-h:hover { background: var(--surface-2); }
+  .fsel { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px;
+          background: var(--accent); color: var(--accent-text); font-size: 11px; margin-left: 4px; vertical-align: 1px; }
+  .chev { width: 8px; height: 8px; border-right: 2px solid var(--faint); border-bottom: 2px solid var(--faint);
+          transform: rotate(45deg); margin-top: -4px; transition: transform .15s; flex-shrink: 0; }
+  .fbox.open .chev { transform: rotate(-135deg); margin-top: 4px; }
+  .fbox-b { padding: 0 16px 12px; }
+  .fbox-b[hidden] { display: none; }
+  .fsearch { width: 100%; padding: 7px 10px; font: inherit; font-size: 13px; color: var(--text); background: var(--bg);
+             border: 1px solid var(--line); border-radius: 8px; margin-bottom: 6px; }
+  .fsearch:focus { outline: none; border-color: var(--accent-soft); }
+  .flist { list-style: none; margin: 0; padding: 0; }
+  .flist li[hidden] { display: none; }
+  .fopt { display: flex; align-items: center; gap: 10px; padding: 5px 0; margin: 0; font-size: 13.5px; font-weight: 400;
+          color: var(--text); cursor: pointer; }
+  .fopt input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; flex-shrink: 0; }
+  .fopt .fname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fopt .fcount { color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; }
+  .fopt:hover .fname { color: var(--accent); }
+  .fopt.zero { opacity: .45; }
+  .fmore { font-size: 13px; margin-top: 4px; }
+  .fmore[hidden] { display: none; }
+  .active { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .active:not(:empty) { margin-bottom: 12px; }
+  .achip { padding: 5px 10px; border-radius: 999px; border: 1px solid var(--accent-soft); background: var(--accent-bg);
+           color: var(--text); font-size: 13px; font-weight: 500; }
+  .achip span { color: var(--muted); margin-left: 2px; }
+  .achip:hover span { color: var(--err); }
+  .ftoggle { display: none; }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: minmax(0, 1fr); }
+    .side { display: none; position: static; max-height: none; }
+    .layout.side-open .side { display: block; }
+    .ftoggle:not([hidden]) { display: inline-block; margin-bottom: 12px; }
+  }
+  .totop { position: fixed; right: 24px; bottom: 24px; z-index: 20; width: 48px; height: 48px; border-radius: 50%;
+           display: grid; place-items: center; background: var(--accent); color: var(--accent-text); border: 0;
+           box-shadow: 0 6px 20px rgba(0,0,0,.18); transition: opacity .2s, transform .2s; }
+  .totop svg { width: 22px; height: 22px; }
+  .totop:hover { transform: translateY(-2px); }
+  .totop[hidden] { display: grid; opacity: 0; pointer-events: none; transform: translateY(8px); }
+  @media (max-width: 560px) { .totop { right: 16px; bottom: 16px; width: 44px; height: 44px; } }
+  .sline { color: var(--muted); font-size: 13px; line-height: 1.5; padding: 2px 2px 0; }
+  .sline b { color: var(--text); font-weight: 600; }
+  .similar { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .res #sresults > .ghead:first-child { margin-top: 12px; }
+  .ghead { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 32px 0 12px; }
+  .ghead h2 { margin: 0; }
+  .gtitle { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .copy { width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 8px; border: 1px solid var(--line);
+          background: var(--surface); color: var(--muted); flex-shrink: 0; }
+  .copy:hover:not(:disabled) { color: var(--accent); border-color: var(--accent-soft); }
+  .copy svg { width: 16px; height: 16px; }
+  .copied { color: var(--accent-soft); font-size: 13px; font-weight: 600; white-space: nowrap; }
+  .pgsize { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .pgs { padding: 4px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 13px; font-weight: 600; }
+  .pgs.on { background: var(--surface-2); color: var(--accent); border-color: var(--accent-soft); }
+  .has-tip { cursor: help; text-decoration: underline dotted var(--faint); text-underline-offset: 3px; outline: none; }
+  .has-tip:hover, .has-tip:focus-visible { text-decoration-color: var(--accent); }
+  .tip { position: fixed; z-index: 30; max-width: 380px; background: var(--surface); color: var(--text); border: 1px solid var(--line);
+         border-radius: 12px; padding: 12px 14px; font-size: 13px; box-shadow: 0 12px 32px rgba(0,0,0,.14); pointer-events: none; }
+  .tip[hidden] { display: none; }
+  .tip-title { font-weight: 700; margin-bottom: 6px; }
+  .tip-row { display: flex; justify-content: space-between; gap: 16px; padding: 2px 0; }
+  .tip-row span { color: var(--muted); white-space: nowrap; }
+  .tip-row b { font-weight: 600; text-align: right; }
+  .tip-sec { color: var(--muted); margin-top: 8px; }
+  .tip-path { margin-top: 2px; }
+  .tip-url { color: var(--faint); font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 8px; }
+  .item { padding: 12px 20px; }
+  .ftabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin: 24px 0 0; }
+  .ftabs:empty { display: none; }
+  .ftab { height: 38px; margin: 0; line-height: 1; white-space: nowrap; flex: 0 0 auto; padding: 0 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+          font-size: 14px; font-weight: 600; }
+  .ftab span { margin-left: 4px; color: var(--faint); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .ftab:hover { border-color: var(--accent-soft); color: var(--text); }
+  .ftab.on { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+  .ftab.on span { color: var(--accent-text); opacity: .75; }
+  .ftab.zero { opacity: .55; }
+  .search-main { padding: 28px; box-shadow: 0 8px 30px rgba(0,0,0,.05); }
+  .search-main input[type=text] { font-size: 18px; padding: 16px 18px; }
+  .search-main .primary { padding: 0 28px; font-size: 16px; }
+  .size { position: relative; flex: 0 0 128px; margin: 0; display: flex; }   /* высота — как у поля названия и кнопки */
+  .size span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 13px; font-weight: 600; pointer-events: none; }
+  .search-main .size input { width: 100%; height: 100%; font-size: 16px; padding: 16px 10px 16px 30px; color: var(--text); background: var(--surface);
+          border: 1px solid var(--line); border-radius: 10px; }
+  .size input:focus { outline: none; border-color: var(--accent-soft); box-shadow: 0 0 0 4px var(--focus); }
+  /* Без стрелок вверх-вниз у числового поля — вместо них крестик «очистить» */
+  .size input::-webkit-inner-spin-button, .size input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  .size input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+  .search-main .size input { padding-right: 30px; }
+  .search-main .size input:placeholder-shown { padding-right: 8px; }
+  .size.color { flex-basis: 200px; }
+  /* Поле цвета: слева образец (клик — палитра), справа HEX */
+  .size.color input[type=text] { font-size: 15px; padding-left: 44px; text-transform: uppercase; }
+  .size.color.has-tol input[type=text] { padding-right: var(--badge-pad, 84px); }
+  .ctol { position: absolute; right: 38px; top: 50%; transform: translateY(-50%); padding: 3px 7px; border-radius: 6px; font-size: 12px;
+          font-weight: 600; background: var(--surface-2); color: var(--muted); border: 0; }
+  .ctol:hover { color: var(--text); }
+  .ctol[hidden] { display: none; }
+  .size.color input[type=text]::placeholder { text-transform: none; }
+  .pick { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 26px; height: 26px; border-radius: 7px; padding: 0;
+          border: 1px solid var(--line); overflow: hidden; cursor: pointer; background:
+          repeating-conic-gradient(var(--surface-2) 0 25%, var(--surface) 0 50%) 0 0 / 10px 10px; }
+  .pick i { position: absolute; inset: 0; }
+  .pick:hover, .pick[aria-expanded=true] { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--focus); }
+  .pick i.empty { background: conic-gradient(from 90deg, #f44, #fd3, #4d6, #3cf, #66f, #e4e, #f44); opacity: .85; }
+  /* Пикер цвета: квадрат насыщенность/яркость, ползунок оттенка, пипетка, HEX и отклонение */
+  .cpop { position: fixed; z-index: 50; width: 272px; padding: 14px; background: var(--surface); border: 1px solid var(--line);
+          border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,.18); }
+  .cpop[hidden] { display: none; }
+  .sv { position: relative; height: 168px; border-radius: 10px; cursor: crosshair; touch-action: none;
+        background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), var(--hue, #f00); }
+  .sv i { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff;
+          box-shadow: 0 0 0 1px rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.2); pointer-events: none; }
+  .cpop input[type=range] { width: 100%; margin: 12px 0 0; accent-color: var(--accent); }
+  .cpop .hue { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 6px;
+               background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+  .cpop .hue::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+               border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.3); cursor: pointer; }
+  .cpop .hue::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .cp-row { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  .cp-row .sw { width: 32px; height: 32px; border-radius: 8px; margin: 0; }
+  .cp-row input { flex: 1; min-width: 0; font: inherit; font-size: 14px; padding: 7px 10px; text-transform: uppercase; color: var(--text);
+                  background: var(--surface); border: 1px solid var(--line); border-radius: 8px; }
+  .cp-row input:focus { outline: none; border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--focus); }
+  .cp-drop { width: 34px; height: 34px; padding: 0; display: grid; place-items: center; flex: 0 0 auto; }
+  .cp-drop svg { width: 17px; height: 17px; }
+  /* Прозрачность цвета: полоса от прозрачного к выбранному цвету поверх «шахматки» */
+  .cpop .alpha { -webkit-appearance: none; appearance: none; height: 12px; border-radius: 6px; background: var(--alpha-bg); }
+  .cpop .alpha::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff;
+               border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 1px 3px rgba(0,0,0,.3); cursor: pointer; }
+  .cpop .alpha::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 1px rgba(0,0,0,.35); }
+  .cpop .alpha.any::-webkit-slider-thumb { background: var(--surface-2); }
+  .cp-row .sw.chk, .pick { background-color: transparent; }
+  .cp-tol { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; font-size: 13.5px; }
+  .cp-tol label { margin: 0; font-weight: 600; }
+  .cp-hint { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.4; }
+  .cp-range { display: flex; gap: 3px; margin-top: 8px; }
+  .cp-range i { flex: 1; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.08); }
+  .cp-actions { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; }
+  .cp-actions .primary { padding: 8px 16px; font-size: 14px; }
+  .size.color.bad input[type=text] { border-color: var(--err); }
+  .sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid rgba(0,0,0,.15); flex: 0 0 auto;
+        vertical-align: -2px; margin-right: 6px; }
+  .name .sw { width: 12px; height: 12px; margin: 0 0 0 8px; vertical-align: -1px; }
+  .clr { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px; padding: 0;
+         display: grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); border: 0; }
+  .clr:hover { background: var(--line); color: var(--text); }
+  .clr svg { width: 12px; height: 12px; }
+  .clr[hidden] { display: none; }
+  @media (max-width: 760px) { .search-main .row { flex-wrap: wrap; } .search-main .row > #q { flex-basis: 100%; } .size { flex: 1 1 0; } }
+  ul.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .item { padding: 14px 20px; display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; }
+  .item + .item { border-top: 1px solid var(--line); }
+  .item .body { min-width: 0; }
+  .name { font-weight: 600; word-break: break-word; }
+  .path { color: var(--muted); font-size: 13px; margin-top: 2px; word-break: break-word; }
+  .id { font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--faint); margin-top: 6px; }
+  .tags { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-left: 8px; vertical-align: 1px; }
+  .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--muted); }
+  .tag.hidden { background: var(--warn-bg); color: var(--warn); }
+  .open { white-space: nowrap; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--accent); }
+  .quote { margin-top: 4px; font-size: 14px; }
+  .quote mark { background: var(--warn-bg); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .chip { display: inline-block; margin: 4px 6px 0 0; padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+  .chip:hover { border-color: var(--accent-soft); }
+  h2[id] { scroll-margin-top: 16px; }
+  @media (max-width: 560px) { .item { flex-direction: column; gap: 8px; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand"><span class="logo" aria-hidden="true">⌘</span>Search Agent
+      <nav class="variants"><a href="/" class="on">Поиск</a><a href="/settings">Настройки</a><a href="/faq">FAQ</a></nav></div>
+    <div class="lives">
+      <div class="live checking" id="live" title="Проверяем, запущен ли локальный сервер"><span class="dot"></span><span id="liveText">Проверяем сервер…</span></div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+  <h1>Поиск по макетам</h1>
+  <p class="lead">Найдите компонент, фрейм, картинку, любой слой или текст сразу во всех загруженных макетах. Поиск идёт по локальной базе — мгновенно и без запросов к Figma.</p>
+
+  <form id="searchForm" class="card search-main" autocomplete="off">
+    <div class="row">
+      <input type="text" id="q" placeholder="Компонент, фрейм, слой или текст — например, Primary Button" autofocus>
+      <label class="size" title="Точная ширина объекта в пикселях. Пусто — не учитывается"><span>Ш</span>
+        <input type="number" id="w" min="0" step="0.1" inputmode="decimal" placeholder="ширина" aria-label="Ширина, px">
+        <button type="button" class="clr" data-for="w" hidden title="Очистить ширину" aria-label="Очистить ширину"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></label>
+      <label class="size" title="Точная высота объекта в пикселях. Пусто — не учитывается"><span>В</span>
+        <input type="number" id="h" min="0" step="0.1" inputmode="decimal" placeholder="высота" aria-label="Высота, px">
+        <button type="button" class="clr" data-for="h" hidden title="Очистить высоту" aria-label="Очистить высоту"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></label>
+      <div class="size color" id="cbox">
+        <button type="button" class="pick" id="pick" title="Выбрать цвет: палитра, пипетка и отклонение" aria-haspopup="dialog" aria-expanded="false"><i id="cswatch" class="empty"></i></button>
+        <input type="text" id="c" maxlength="9" spellcheck="false" placeholder="цвет #HEX" aria-label="Цвет, HEX"
+               title="Цвет заливки, текста или обводки в HEX, например #FF3366. Квадратик слева — палитра. Пусто — не учитывается">
+        <button type="button" class="ctol" id="ctol" hidden title="Прозрачность и отклонение цвета — нажмите, чтобы изменить"></button>
+        <button type="button" class="clr" data-for="c" hidden title="Очистить цвет" aria-label="Очистить цвет"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+      <button type="submit" class="primary" id="find">Найти</button>
+    </div>
+    <p class="hint">Инстансы компонента — по точному названию компонента; фреймы, секции, группы, картинки и другие слои — по названию; тексты — по содержимому. Регистр не важен. Ширина, высота и цвет (заливка, цвет текста или обводка) — точные: с названием уточняют поиск, без названия находят все такие объекты.</p>
+    <div class="check">
+      <input type="checkbox" id="hideHidden"><label for="hideHidden">Не показывать скрытые объекты (сам слой или его родитель скрыт)</label>
+    </div>
+  </form>
+  </div>
+
+  <div class="cpop" id="cpop" hidden role="dialog" aria-label="Выбор цвета">
+    <div class="sv" id="sv"><i id="svDot"></i></div>
+    <input type="range" class="hue" id="hue" min="0" max="360" step="1" value="0" aria-label="Оттенок">
+    <div class="cp-row">
+      <button type="button" class="ghost cp-drop" id="eyedrop" title="Пипетка: взять цвет с экрана" aria-label="Пипетка">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg></button>
+      <i class="sw" id="cpPrev"></i>
+      <input type="text" id="cpHex" maxlength="7" spellcheck="false" aria-label="HEX">
+    </div>
+    <div class="cp-tol"><label for="alpha">Прозрачность</label><b id="alphaVal">Любая</b></div>
+    <input type="range" class="alpha any" id="alpha" min="-5" max="100" step="5" value="-5" aria-label="Прозрачность цвета">
+    <p class="cp-hint" id="alphaHint"></p>
+    <div class="cp-tol"><label for="tol">Отклонение</label><b id="tolVal">0%</b></div>
+    <input type="range" id="tol" min="0" max="50" step="1" value="0">
+    <div class="cp-range" id="cpRange" title="Примеры цветов на границе отклонения"></div>
+    <p class="cp-hint" id="tolHint"></p>
+    <div class="cp-actions"><button type="button" class="ghost" id="cpReset">Сбросить</button><button type="button" class="primary" id="cpApply">Применить</button></div>
+  </div>
+
+  <div class="ftabs" id="ftabs" role="tablist" aria-label="Макеты"></div>
+  <div class="layout no-side" id="layout">
+    <aside class="side" id="side" aria-label="Фильтры">
+      <div class="facets" id="facets"></div>
+    </aside>
+    <section class="res">
+      <button type="button" class="ghost ftoggle" id="ftoggle" hidden aria-controls="side" aria-expanded="false">Фильтры</button>
+      <div class="active" id="active"></div>
+      <div id="sstatus" aria-live="polite"></div>
+      <div id="sresults"></div>
+    </section>
+  </div>
+</main>
+<button type="button" class="totop" id="toTop" hidden title="Наверх, к вкладкам и фильтрам" aria-label="Наверх, к вкладкам и фильтрам">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+</button>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const API = /^https?:$/.test(location.protocol) ? "" : "http://127.0.0.1:8000";
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// Сервер работает, только пока открыта страница (см. app/lifecycle.py).
+const PAGE_ID = (crypto.randomUUID && crypto.randomUUID()) || String(Math.random()).slice(2);
+function setLive(ok) {
+  if (ok) {
+    if (!$("live").classList.contains("up")) { $("live").className = "live up"; $("liveText").textContent = "Сервер запущен"; }
+    return;
+  }
+  $("live").className = "live down";
+  $("liveText").textContent = "Сервер не отвечает";
+}
+function uptimeText(sec) {
+  if (sec < 60) return "только что";
+  const m = Math.floor(sec / 60);
+  return m < 60 ? `${m} мин` : `${Math.floor(m / 60)} ч ${m % 60} мин`;
+}
+function showServer(info) {
+  $("live").className = "live up";
+  $("liveText").textContent = `Сервер запущен · ${uptimeText(info.uptime_s || 0)}`;
+}
+function beat() {
+  fetch(API + "/api/heartbeat", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ page: PAGE_ID }),
+  }).then((r) => r.json()).then(showServer).catch(() => setLive(false));
+}
+setInterval(beat, 5000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) beat(); });
+addEventListener("pagehide", () => {
+  navigator.sendBeacon(API + "/api/bye", new Blob([JSON.stringify({ page: PAGE_ID })], { type: "text/plain" }));
+});
+document.querySelectorAll(".variants a").forEach((a) => { a.href = (API || "") + a.getAttribute("href"); });
+
+const num = (n) => Number(n || 0).toLocaleString("ru-RU");
+const sec = (v) => (v < 10 ? Number(v).toFixed(2) : Number(v).toFixed(1)).replace(".", ",") + " с";
+function size(b) {
+  b = Number(b || 0);
+  if (b < 1024) return `${b} Б`;
+  if (b < 1024 ** 2) return `${(b / 1024).toFixed(1).replace(".", ",")} КБ`;
+  if (b < 1024 ** 3) return `${(b / 1024 ** 2).toFixed(1).replace(".", ",")} МБ`;
+  return `${(b / 1024 ** 3).toFixed(2).replace(".", ",")} ГБ`;
+}
+const ratio = (a, b) => (b ? `в ${Math.max(1, Math.round(a / b)).toLocaleString("ru-RU")} раз меньше` : "");
+const TYPE_RU = { FRAME: "фреймы", GROUP: "группы", INSTANCE: "инстансы", TEXT: "тексты", VECTOR: "векторы", RECTANGLE: "прямоугольники",
+  ELLIPSE: "эллипсы", COMPONENT: "компоненты", COMPONENT_SET: "наборы вариантов", SECTION: "секции", CANVAS: "страницы",
+  BOOLEAN_OPERATION: "булевы операции", IMAGE: "картинки", LINE: "линии", DOCUMENT: "документ", STAR: "звёзды", POLYGON: "многоугольники", REGULAR_POLYGON: "многоугольники" };
+
+function setStatus(kind, html) {
+  $("status").innerHTML = html ? `<div class="block ${kind}">${html}</div>` : "";
+}
+
+function when(iso) {
+  const d = new Date(iso);
+  return isNaN(d) ? iso : d.toLocaleString("ru-RU", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+}
+
+// --- Поиск по локальной базе ---
+const appUrl = (url) => String(url || "").replace(/^https:\/\/(www\.)?figma\.com\//, "figma://");
+try { $("hideHidden").checked = localStorage.getItem("hideHidden") === "1"; } catch {}
+$("hideHidden").addEventListener("change", () => { try { localStorage.setItem("hideHidden", $("hideHidden").checked ? "1" : "0"); } catch {} });
+const pathText = (page, path) => [page, ...(path || [])].filter(Boolean).map(esc).join(" / ");
+function mark(text, q) {
+  const t = String(text || ""), i = t.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return esc(t);
+  const from = Math.max(0, i - 60), to = Math.min(t.length, i + q.length + 60);
+  return (from ? "…" : "") + esc(t.slice(from, i)) + "<mark>" + esc(t.slice(i, i + q.length)) + "</mark>" + esc(t.slice(i + q.length, to)) + (to < t.length ? "…" : "");
+}
+// Компактная строка результата: название (подробности — в подсказке), бейджи, страница.
+let tipItems = [];
+const px = (v) => String(Math.round(v * 10) / 10).replace(".", ",");
+const figmaUrl = (it) => `https://www.figma.com/design/${it.fileKey}/?node-id=${encodeURIComponent(it.id.replace(/:/g, "-"))}`;
+function resultItem(i, q) {
+  const tags = [];
+  if (i.variant) tags.push(`<span class="tag">${esc(i.variant)}</span>`);
+  if (i.exact === false) tags.push(`<span class="tag">частичное совпадение</span>`);
+  if (i.hidden) tags.push(`<span class="tag hidden">скрыт</span>`);
+  const n = tipItems.push(i) - 1;
+  const sw = i.fill ? `<i class="sw" style="background:#${i.fill}${alphaHex(i.fillA)}" title="Заливка #${i.fill}"></i>` : "";
+  return `<li class="item"><div class="body">
+      <div class="name"><span class="has-tip" tabindex="0" data-tip="${n}">${esc(i.name)}</span>${sw}<span class="tags">${tags.join("")}</span></div>
+      ${i.text != null ? `<div class="quote">${mark(i.text, q)}</div>` : ""}
+      <div class="path">${esc(i.page || "")}</div>
+    </div><a class="open" href="${esc(appUrl(figmaUrl(i)))}" title="Открывается в приложении Figma">Открыть в Figma ↗</a></li>`;
+}
+
+const CHECKER = "repeating-conic-gradient(#d9dcd4 0 25%, #fff 0 50%) 0 0 / 10px 10px";  // «шахматка» под прозрачным цветом
+const alphaHex = (a) => (a == null ? "" : Math.round(a * 2.55).toString(16).padStart(2, "0"));
+const srcLabel = (src) => (src == null ? "вручную" : src === "v:" ? "переменная" : src.startsWith("s:") ? "стиль «" + src.slice(2) + "»" : src);
+function paintLabel(hex, a, src) {
+  return `<i class="sw" style="background:#${hex}${alphaHex(a)}"></i>#${hex}${a != null ? ` · ${a}%` : ""} · ${esc(srcLabel(src))}`;
+}
+// Подсказка при наведении на название. Путь, размер и родитель-инстанс подгружаются
+// для одного объекта по запросу (и запоминаются), остальное уже есть в результатах.
+const details = new Map();
+function tipHtml(i, d) {
+  const rows = [];
+  const row = (k, v) => rows.push(`<div class="tip-row"><span>${k}</span><b>${v}</b></div>`);
+  row("Макет", esc(i.file));
+  row("Страница", esc(i.page || "—"));
+  if (d && d.box) {
+    row("Размер", `${px(d.box.w)} × ${px(d.box.h)} px`);
+    row("Координаты", `x ${px(d.box.x)}, y ${px(d.box.y)}`);
+  }
+  if (d && d.parent_instance) row("Вложен в инстанс", `«${esc(d.parent_instance.name || "")}»`);
+  const x = (d && d.extra) || {};
+  if (x.font) {
+    const [fam, style, weight, size, lh, ls] = x.font.split(";");
+    row("Шрифт", esc([fam, style || weight, size && size + " px", lh && "интерлиньяж " + lh, ls && ls !== "0" && "трекинг " + ls].filter(Boolean).join(" · ")));
+  }
+  if (x.font || x.tstyle) row("Текстовый стиль", x.tstyle ? `«${esc(x.tstyle)}»` : "нет (задан вручную)");
+  if (x.radius) row("Скругление", esc(x.radius.replace(/,/g, " / ")));
+  if (x.opacity != null) row("Прозрачность слоя", x.opacity + "%");
+  if (x.effect) row("Эффекты", x.effect.startsWith("s:") ? `стиль «${esc(x.effect.slice(2))}»`
+    : esc(x.effect.split("|").map((e) => ({ DROP_SHADOW: "тень", INNER_SHADOW: "внутренняя тень", LAYER_BLUR: "размытие", BACKGROUND_BLUR: "размытие фона" })[e.split(";")[0]] || e.split(";")[0]).join(", ")) + " (вручную)");
+  if (x.layout) {
+    const [dir, gap, pads, wrap] = x.layout.split(";");
+    row("Auto layout", esc(`${dir === "H" ? "горизонтально" : dir === "V" ? "вертикально" : dir}, gap ${gap}, отступы ${pads.replace(/,/g, " / ")}${wrap ? ", перенос" : ""}`));
+  }
+  if (x.ovr) row("Инстанс", "изменён относительно мастера");
+  if (x.dev) row("Dev Mode", x.dev === "R" ? "Ready for dev" : "Completed");
+  if (x.img) row("Картинка", `<code>${esc(x.img.slice(0, 10))}…</code>`);
+  if (x.link) row("Прототип", `ведёт на ${x.link.split(",").length} экран(а)`);
+  if (i.fill) row(i.type == null && i.text != null ? "Цвет текста" : "Заливка", paintLabel(i.fill, i.fillA, i.fillSrc));
+  if (i.stroke) row("Обводка", paintLabel(i.stroke, i.strokeA, i.strokeSrc));
+  if (i.hidden) row("Видимость", "скрыт (сам слой или родитель)");
+  const path = !d ? `<div class="tip-sec">Загружаем путь…</div>`
+    : (d.path || []).length ? `<div class="tip-sec">Путь</div><div class="tip-path">${d.path.map(esc).join(" / ")}</div>` : "";
+  return `<div class="tip-title">${esc(i.name)}</div>${rows.join("")}${path}<div class="tip-url">ID ${esc(i.id)}</div>`;
+}
+const tip = document.createElement("div");
+tip.className = "tip"; tip.hidden = true; tip.setAttribute("role", "tooltip");
+document.body.appendChild(tip);
+function placeTip(el) {
+  const r = el.getBoundingClientRect();
+  const w = Math.min(tip.offsetWidth, 380), h = tip.offsetHeight;
+  tip.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + "px";
+  const below = r.bottom + 8;
+  tip.style.top = Math.max(8, below + h > innerHeight - 8 ? r.top - h - 8 : below) + "px";
+}
+let tipFor = null;
+async function showTip(el) {
+  const it = tipItems[+el.dataset.tip];
+  if (!it) return;
+  tipFor = el;
+  const key = it.f + "|" + it.id;
+  tip.innerHTML = tipHtml(it, details.get(key));
+  tip.style.left = "0px"; tip.style.top = "0px";
+  tip.hidden = false;
+  placeTip(el);
+  requestAnimationFrame(() => { if (!tip.hidden) placeTip(el); });
+  if (!details.has(key)) {
+    try {
+      const d = await (await fetch(API + "/api/exp/node", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file: it.f, id: it.id }),
+      })).json();
+      details.set(key, d.status === "ok" ? d : { path: [] });
+    } catch { return; }
+    if (tipFor === el && !tip.hidden) { tip.innerHTML = tipHtml(it, details.get(key)); placeTip(el); }
+  }
+}
+const hideTip = () => { tip.hidden = true; tipFor = null; };
+document.addEventListener("mouseover", (e) => { const el = e.target.closest(".has-tip"); if (el) showTip(el); });
+document.addEventListener("mouseout", (e) => { if (e.target.closest(".has-tip")) hideTip(); });
+document.addEventListener("focusin", (e) => { const el = e.target.closest(".has-tip"); if (el) showTip(el); });
+document.addEventListener("focusout", (e) => { if (e.target.closest(".has-tip")) hideTip(); });
+addEventListener("scroll", hideTip, { passive: true });
+
+function pager(id, block) {
+  if (!block.pages || block.pages < 2) return "";
+  const cur = block.page, last = block.pages;
+  const nums = [...new Set([1, cur - 2, cur - 1, cur, cur + 1, cur + 2, last])].filter((n) => n >= 1 && n <= last).sort((a, b) => a - b);
+  let html = "", prev = 0;
+  for (const n of nums) {
+    if (n - prev > 1) html += `<span class="pg-gap">…</span>`;
+    html += `<button type="button" class="pg${n === cur ? " on" : ""}" data-g="${id}" data-p="${n}" ${n === cur ? 'aria-current="page"' : ""}>${n}</button>`;
+    prev = n;
+  }
+  const from = (cur - 1) * pageSize + 1, to = Math.min(cur * pageSize, block.total);
+  return `<nav class="pager" aria-label="Страницы">
+    <button type="button" class="pg" data-g="${id}" data-p="${cur - 1}" ${cur === 1 ? "disabled" : ""} aria-label="Назад">‹</button>${html}
+    <button type="button" class="pg" data-g="${id}" data-p="${cur + 1}" ${cur === last ? "disabled" : ""} aria-label="Вперёд">›</button>
+    <span class="pg-info">${num(from)}–${num(to)} из ${num(block.total)}</span></nav>`;
+}
+// --- Быстрые фильтры: страница и свойства вариантов ---
+const FACET_SHOW = 8;           // сколько значений видно без «Показать все»
+const FACET_SEARCH_FROM = 10;   // с какого числа значений появляется поиск по ним
+const closedFacets = new Set(); // свёрнутые блоки фильтров
+const facetQuery = {};          // текст в поиске по значениям фильтра
+let lastFacets = [];
+const anyFilter = () => Object.values(activeFilters).some((v) => v && v.length);
+const FACET_TITLES = { group: "Тип объекта", comp: "Компонент", page: "Страница", fill: "Цвет заливки", src: "Источник цвета", style: "Стиль цвета" };
+const facetTitle = (k) => FACET_TITLES[k] || k.slice(5);
+
+function toggleValue(k, v) {
+  const set = new Set(activeFilters[k] || []);
+  set.has(v) ? set.delete(v) : set.add(v);
+  activeFilters[k] = [...set];
+  if (!activeFilters[k].length) delete activeFilters[k];
+  groupPages = {};
+  render();
+}
+
+// Фильтры слева, как в интернет-магазинах: блоки со списком значений и галочками.
+function renderFacets(r) {
+  const facets = lastFacets = r.facets || [];
+  const any = anyFilter();
+  $("layout").classList.toggle("no-side", !facets.length && !any);
+  // Выбранные фильтры над результатами — «таблетки» с крестиком
+  const chips = Object.entries(activeFilters).flatMap(([k, vs]) => vs.map((v) =>
+    `<button type="button" class="achip" data-k="${esc(k)}" data-v="${esc(v)}" title="Убрать фильтр">${esc(facetTitle(k))}: ${esc(v)} <span aria-hidden="true">×</span></button>`));
+  $("active").innerHTML = chips.length ? chips.join("") + `<button type="button" class="link" data-reset>Сбросить всё</button>` : "";
+  const nSel = Object.values(activeFilters).reduce((n, v) => n + v.length, 0);
+  $("ftoggle").hidden = !facets.length && !any;
+  $("ftoggle").textContent = nSel ? `Фильтры (${nSel})` : "Фильтры";
+  if (!facets.length && !any) { $("facets").innerHTML = ""; bindReset(); return; }
+
+  $("facets").innerHTML = `<div class="fhead"><b>Фильтры</b>${any ? '<button type="button" class="link" data-reset>Сбросить</button>' : ""}</div>`
+    + facets.map((f) => {
+      const sel = f.values.filter((v) => v.selected).length;
+      const open = !closedFacets.has(f.key);
+      const all = openFacets.has(f.key);
+      const withSearch = f.values.length >= FACET_SEARCH_FROM;
+      const q = (facetQuery[f.key] || "").trim().toLowerCase();
+      const items = f.values.map((v, k) => {
+        const hide = q ? !v.value.toLowerCase().includes(q) : (!all && k >= FACET_SHOW && !v.selected);
+        return `<li${hide ? " hidden" : ""} data-v="${esc(v.value.toLowerCase())}"><label class="fopt${v.count ? "" : " zero"}">
+          <input type="checkbox" data-k="${esc(f.key)}" value="${esc(v.value)}" ${v.selected ? "checked" : ""}>
+          <span class="fname" title="${esc(v.value)}">${f.key === "fill" ? `<i class="sw" style="background:${esc(v.value)}"></i>` : ""}${esc(v.value)}</span><span class="fcount">${num(v.count)}</span></label></li>`;
+      }).join("");
+      const more = f.values.length > FACET_SHOW
+        ? `<button type="button" class="link fmore" data-k="${esc(f.key)}"${q ? " hidden" : ""}>${all ? "Свернуть" : `Показать все (${f.values.length})`}</button>` : "";
+      return `<section class="fbox${open ? " open" : ""}">
+        <button type="button" class="fbox-h" data-k="${esc(f.key)}" aria-expanded="${open}">
+          <span>${esc(f.title)}${sel ? ` <span class="fsel">${sel}</span>` : ""}</span><span class="chev" aria-hidden="true"></span></button>
+        <div class="fbox-b"${open ? "" : " hidden"}>
+          ${withSearch ? `<input type="search" class="fsearch" data-k="${esc(f.key)}" placeholder="Найти: ${esc(f.title)}" value="${esc(facetQuery[f.key] || "")}">` : ""}
+          <ul class="flist">${items}</ul>${more}
+        </div></section>`;
+    }).join("");
+
+  document.querySelectorAll('.flist input[type="checkbox"]').forEach((c) => c.addEventListener("change", () => toggleValue(c.dataset.k, c.value)));
+  document.querySelectorAll(".fbox-h").forEach((b) => b.addEventListener("click", () => {
+    closedFacets.has(b.dataset.k) ? closedFacets.delete(b.dataset.k) : closedFacets.add(b.dataset.k);
+    renderFacets({ facets: lastFacets });
+  }));
+  document.querySelectorAll(".fmore").forEach((b) => b.addEventListener("click", () => {
+    openFacets.has(b.dataset.k) ? openFacets.delete(b.dataset.k) : openFacets.add(b.dataset.k);
+    renderFacets({ facets: lastFacets });
+  }));
+  // Поиск по значениям — без перерисовки, чтобы не терять фокус в поле
+  document.querySelectorAll(".fsearch").forEach((inp) => inp.addEventListener("input", () => {
+    const k = inp.dataset.k, q = inp.value.trim().toLowerCase();
+    facetQuery[k] = inp.value;
+    const box = inp.closest(".fbox"), all = openFacets.has(k);
+    [...box.querySelectorAll(".flist li")].forEach((li, n) => {
+      const checked = li.querySelector("input").checked;
+      li.hidden = q ? !li.dataset.v.includes(q) : (!all && n >= FACET_SHOW && !checked);
+    });
+    const more = box.querySelector(".fmore");
+    if (more) more.hidden = !!q;
+  }));
+  bindReset();
+  fitSide();
+}
+function bindReset() {
+  document.querySelectorAll(".achip").forEach((b) => b.addEventListener("click", () => toggleValue(b.dataset.k, b.dataset.v)));
+  document.querySelectorAll("[data-reset]").forEach((b) => b.addEventListener("click", () => { activeFilters = {}; groupPages = {}; render(); }));
+}
+// Высота колонки фильтров — по видимой части окна (от её верха до низа экрана): тогда полоса
+// прокрутки появляется, как только список не помещается на экране, и низ списка всегда достижим.
+function fitSide() {
+  const f = $("facets"), side = $("side");
+  if (!f || !side || getComputedStyle(side).position !== "sticky") { if (f) f.style.maxHeight = ""; return; }
+  const top = Math.max(side.getBoundingClientRect().top, 16);
+  f.style.maxHeight = Math.max(200, innerHeight - top - 16) + "px";
+}
+addEventListener("scroll", fitSide, { passive: true });
+addEventListener("resize", fitSide);
+
+$("ftoggle").addEventListener("click", () => {
+  const open = $("layout").classList.toggle("side-open");
+  $("ftoggle").setAttribute("aria-expanded", String(open));
+});
+
+// --- Кнопка «Скопировать»: все результаты группы списком (для кода, задачи, сообщения) ---
+const COPY_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+const DONE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m4.5 12.5 5 5L19.5 7"/></svg>';
+let lastComponents = "";
+function exportText(title, total, items) {
+  const ctx = [`Запрос: ${queryLabel(lastQ, lastSize.w, lastSize.h, lastSize.c, lastSize.tol, lastSize.alpha)}`];
+  const tab = document.querySelector(".ftab.on");
+  if (currentFile && tab) ctx.push("макет: " + tab.firstChild.textContent.trim());
+  const flt = Object.entries(activeFilters).filter(([, v]) => v.length)
+    .map(([k, v]) => `${facetTitle(k)} = ${v.join(" или ")}`);
+  if (flt.length) ctx.push("фильтры: " + flt.join("; "));
+  if ($("hideHidden").checked) ctx.push("без скрытых");
+  const head = `${title}${title === "Инстансы компонента" && lastComponents ? " " + lastComponents : ""} — ${total}`;
+  // Не повторяем в строках то, что уже сказано в заголовке: свойства варианта, заданные
+  // фильтром с одним значением, страницу из фильтра, макет из вкладки, название компонента.
+  const fixedProps = new Set(Object.entries(activeFilters).filter(([k, v]) => k.startsWith("prop:") && v.length === 1).map(([k]) => k.slice(5)));
+  const fixedPage = (activeFilters.page || []).length === 1;
+  const compNames = new Set((lastComponents.match(/«([^»]+)»/g) || []).map((x) => x.slice(1, -1).toLowerCase()));
+  const lines = items.map((i, k) => {
+    const parts = [];
+    if (!(title === "Инстансы компонента" && compNames.has(String(i.name).toLowerCase()))) parts.push(i.name);
+    const props = String(i.variant || "").split(",").map((x) => x.trim()).filter((x) => x && !fixedProps.has(x.split("=")[0].trim()));
+    if (props.length) parts.push(props.join(", "));
+    if (i.text != null && i.text !== i.name) parts.push(`«${String(i.text).replace(/\s+/g, " ").slice(0, 120)}»`);
+    const where = [currentFile ? null : i.file, fixedPage ? null : i.page].filter(Boolean).join(" / ");
+    if (where) parts.push(where);
+    if (i.hidden) parts.push("скрыт");
+    return parts.length ? `${k + 1}. ${parts.join(" · ")}\n   ${i.url}` : `${k + 1}. ${i.url}`;
+  });
+  return `${head}\n${ctx.join(" · ")}\n\n${lines.join("\n")}\n`;
+}
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch {}
+  const ta = Object.assign(document.createElement("textarea"), { value: text });
+  ta.style.position = "fixed"; ta.style.opacity = "0";
+  document.body.appendChild(ta); ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  return ok;
+}
+async function copyGroup(btn) {
+  const g = btn.dataset.g, note = document.querySelector(`.copied[data-for="${g}"]`);
+  const items = (lastView && lastView[g]) || [];
+  // Все результаты группы (не только эта страница) — из уже найденного, без запроса к серверу.
+  const ok = await copyText(exportText(btn.dataset.title, items.length, items.map((i) => ({ ...i, url: figmaUrl(i) }))));
+  note.textContent = ok ? `Скопировано: ${num(items.length)}` : "Не удалось скопировать";
+  btn.innerHTML = ok ? DONE_ICON : COPY_ICON;
+  btn.disabled = true;
+  setTimeout(() => { btn.innerHTML = COPY_ICON; note.textContent = ""; btn.disabled = false; }, 2200);
+}
+
+function pageSizeControl() {
+  return `<div class="pgsize">Показывать по:
+    ${[50, 100, 200].map((n) => `<button type="button" class="pgs${n === pageSize ? " on" : ""}" data-n="${n}">${n}</button>`).join("")}</div>`;
+}
+// Заголовок группы; у первой группы справа на той же строке — «Показывать по».
+function section(id, title, block, q, first) {
+  if (!block.total) return "";
+  const pg = pager(id, block);
+  return `<div class="ghead"><div class="gtitle"><h2 id="g-${id}">${title}: ${num(block.total)}</h2>
+      <button type="button" class="copy" data-g="${id}" data-title="${esc(title)}" title="Скопировать все результаты группы: название, вариант, страница и ссылка">${COPY_ICON}</button>
+      <span class="copied" data-for="${id}"></span></div>${first ? pageSizeControl() : ""}</div>
+    <ul class="list">${block.items.map((i) => resultItem(i, q)).join("")}</ul>${pg}`;
+}
+// Вкладки по макетам: «Все» и каждый загруженный макет. Числа учитывают фильтры и «скрытые».
+let currentFile = null;
+let lastQ = "";
+let groupPages = {};   // номер страницы по группам
+let activeFilters = {}; // быстрые фильтры: {"page": ["Stage 1"], "prop:Color": ["B2"]}
+const openFacets = new Set();  // фильтры, у которых раскрыты все значения
+let pageSize = 50;
+try { pageSize = +localStorage.getItem("pageSize") || 50; } catch {}
+let found = null;      // всё найденное по последнему запросу — фильтрует уже браузер
+let lastSize = { w: null, h: null, c: null, tol: 0 };  // ширина и высота (px), цвет (RRGGBB) и его отклонение (%) из запроса
+let colorTol = 0;  // отклонение цвета, % — задаётся в пикере
+let colorAlpha = null;  // прозрачность цвета, % как opacity в Figma (null — любая), шаг 5 %
+const readSize = (id) => { const v = parseFloat(String($(id).value).replace(",", ".")); return Number.isFinite(v) && v >= 0 ? v : null; };
+const fmtPx = (v) => String(v).replace(".", ",");
+// «#ff3366», «F36» → «FF3366»; пусто → null; ошибка → undefined
+function readColor() {
+  let v = $("c").value.trim().replace(/^#/, "").toUpperCase();
+  if (!v) return null;
+  if (/^[0-9A-F]{3}$/.test(v)) v = v.replace(/./g, "$&$&");
+  return /^[0-9A-F]{6}([0-9A-F]{2})?$/.test(v) ? v.slice(0, 6) : undefined;
+}
+function syncColor() {
+  const c = readColor();
+  $("cbox").classList.toggle("bad", c === undefined);
+  $("cswatch").style.background = c ? `linear-gradient(#${c}${alphaHex(colorAlpha)}, #${c}${alphaHex(colorAlpha)}), ${CHECKER}` : "";
+  $("cswatch").classList.toggle("empty", !c);
+  // Метка в поле: прозрачность и отклонение, если заданы («70% · ±10%»)
+  const parts = c ? [colorAlpha != null ? `${colorAlpha}%` : "", colorTol > 0 ? `±${colorTol}%` : ""].filter(Boolean) : [];
+  $("ctol").hidden = !parts.length;
+  $("ctol").textContent = parts.join(" · ");
+  $("cbox").classList.toggle("has-tol", !!parts.length);
+  if (parts.length) $("cbox").style.setProperty("--badge-pad", $("ctol").offsetWidth + 46 + "px");
+}
+// Подпись запроса: «Primary Button · 56 × 56 px», «ширина 56 px», …
+function queryLabel(q, w, h, c, tol, alpha) {
+  const size = w != null && h != null ? `${fmtPx(w)} × ${fmtPx(h)} px` : w != null ? `ширина ${fmtPx(w)} px` : h != null ? `высота ${fmtPx(h)} px` : "";
+  const color = c ? "цвет #" + c + (alpha != null ? `, прозрачность ${alpha}%` : "") + (tol ? ` ±${tol}%` : "") : "";
+  return [q, size, color].filter(Boolean).join(" · ");
+}
+let lastView = null;   // то, что сейчас показано (для копирования)
+// Результаты не теряются при переходе в «Настройки» и обратно: запоминаем запрос и вид.
+function saveState() {
+  try { sessionStorage.setItem("search", JSON.stringify({ q: lastQ, w: lastSize.w, h: lastSize.h, c: lastSize.c, tol: lastSize.tol, alpha: lastSize.alpha, file: currentFile, pages: groupPages, filters: activeFilters })); } catch {}
+}
+
+// --- Фильтры в браузере (то же правило, что на сервере) ---
+function variantProps(v) {
+  const out = {};
+  for (const part of String(v || "").split(",")) {
+    const i = part.indexOf("=");
+    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return out;
+}
+let GROUP_TITLE = {}, GROUP_RANK = {};  // из ответа сервера: ключ группы → название, порядок
+function facetValues(it) {
+  if (!it._fv) {
+    it._fv = { group: GROUP_TITLE[it.g] || it.g, page: it.page || "—" };
+    if (it.comp) it._fv.comp = it.comp;
+    if (it.fill) {
+      it._fv.fill = "#" + it.fill;
+      it._fv.src = it.fillSrc == null ? "Вручную" : it.fillSrc === "v:" ? "Переменная" : "Стиль";
+      if (it.fillSrc && it.fillSrc.startsWith("s:")) it._fv.style = it.fillSrc.slice(2);
+    }
+    for (const [k, v] of Object.entries(variantProps(it.variant))) it._fv["prop:" + k] = v;
+  }
+  return it._fv;
+}
+// Внутри фильтра — любое из выбранных значений, между фильтрами — все сразу.
+function passes(it, skip) {
+  const fv = facetValues(it);
+  for (const [k, sel] of Object.entries(activeFilters)) {
+    if (k === skip || !sel.length) continue;
+    if (!sel.includes(fv[k])) return false;
+  }
+  return true;
+}
+const natural = (a, b) => a.localeCompare(b, "ru", { numeric: true, sensitivity: "base" });
+function computeFacets(items) {
+  const values = new Map();  // ключ → множество всех значений
+  for (const it of items) for (const [k, v] of Object.entries(facetValues(it))) {
+    if (!values.has(k)) values.set(k, new Set());
+    values.get(k).add(v);
+  }
+  const rank = (k) => ({ group: 0, comp: 1, page: 2, fill: 3, src: 4, style: 5 })[k] ?? 6;  // тип, компонент, страница, цвет, затем свойства
+  const keys = [...values.keys()].sort((a, b) => rank(a) - rank(b) || natural(a, b));
+  const out = [];
+  for (const key of keys) {
+    const counts = new Map();
+    for (const it of items) if (passes(it, key)) { const v = facetValues(it)[key]; if (v != null) counts.set(v, (counts.get(v) || 0) + 1); }
+    const selected = new Set(activeFilters[key] || []);
+    // Типы объектов — в порядке групп результатов, остальное — по алфавиту с учётом чисел
+    const byOrder = (a, b) => GROUP_RANK[a] - GROUP_RANK[b];
+    // Значения с нулём результатов не показываем (кроме выбранных — чтобы их можно было снять);
+    // если выбирать не из чего (осталось одно значение или ни одного) — фильтр скрываем целиком.
+    const byCount = (a, b) => (counts.get(b) || 0) - (counts.get(a) || 0) || natural(a, b);  // цвета — частые сверху
+    const vals = [...new Set([...values.get(key), ...selected])]
+      .filter((v) => (counts.get(v) || 0) > 0 || selected.has(v))
+      .sort(key === "group" ? byOrder : key === "fill" ? byCount : natural);
+    if (vals.length < 2 && !selected.size) continue;
+    out.push({ key, title: facetTitle(key), values: vals.map((v) => ({ value: v, count: counts.get(v) || 0, selected: selected.has(v) })) });
+  }
+  return out;
+}
+
+function renderTabs(byFile, all) {
+  if (!found || found.files.length < 2) { $("ftabs").innerHTML = ""; return; }
+  const tab = (key, name, total) => `<button type="button" role="tab" class="ftab${(currentFile || "") === key ? " on" : ""}${total ? "" : " zero"}"
+      aria-selected="${(currentFile || "") === key}" data-file="${esc(key)}">${esc(name)} <span>${num(total)}</span></button>`;
+  const files = [...found.files].sort((a, b) => (byFile.get(b.id) || 0) - (byFile.get(a.id) || 0) || natural(a.name, b.name));
+  $("ftabs").innerHTML = tab("", "Все макеты", all) + files.map((f) => tab(f.id, f.name, byFile.get(f.id) || 0)).join("");
+  document.querySelectorAll(".ftab").forEach((b) => b.addEventListener("click", () => {
+    currentFile = b.dataset.file || null;
+    groupPages = {};
+    render();
+  }));
+}
+
+// Показ найденного: мгновенно, без запроса к серверу — при каждом фильтре, вкладке, странице.
+function render() {
+  if (!found) return;
+  const t0 = performance.now();
+  const hideHidden = $("hideHidden").checked;
+  const base = found.items.filter((it) => !(hideHidden && it.hidden));
+  const byFile = new Map();
+  let all = 0;
+  for (const it of base) if (passes(it)) { byFile.set(it.f, (byFile.get(it.f) || 0) + 1); all++; }
+  if (currentFile && !found.files.some((f) => f.id === currentFile)) currentFile = null;
+  const scoped = currentFile ? base.filter((it) => it.f === currentFile) : base;
+  const facets = computeFacets(scoped);
+  const final = scoped.filter((it) => passes(it));
+  const hiddenSkipped = hideHidden ? found.items.filter((it) => it.hidden && (!currentFile || it.f === currentFile)).length : 0;
+
+  const groups = found.groups.map((g) => ({ id: g.key, title: g.title, block: { items: [] } }));
+  const byKey = Object.fromEntries(groups.map((g) => [g.id, g]));
+  for (const it of final) byKey[it.g].block.items.push(it);
+  for (const g of groups) {
+    const b = g.block;
+    b.total = b.items.length;
+    b.pages = Math.max(1, Math.ceil(b.total / pageSize));
+    b.page = Math.min(Math.max(1, groupPages[g.id] || 1), b.pages);
+    b.all = b.items;
+    b.items = b.items.slice((b.page - 1) * pageSize, b.page * pageSize);
+  }
+  const shown = groups.filter((g) => g.block.total);
+  lastView = Object.fromEntries(shown.map((g) => [g.id, g.block.all]));
+
+  renderTabs(byFile, all);
+  const sim = found.similar.length ? `<div class="similar">Похожие компоненты: ${found.similar.map((n) => `<span class="chip" data-q="${esc(n)}">${esc(n)}</span>`).join("")}</div>` : "";
+  const nothing = !shown.length;
+  if (nothing) {
+    const why = found.items.length ? "Попробуйте снять фильтры или галочку «Не показывать скрытые»." : "";
+    $("sstatus").innerHTML = `<div class="block warn"><b>Ничего не найдено по запросу «${esc(queryLabel(found.q, found.w, found.h, found.color, found.tol, found.alpha))}».</b> ${why}${sim}</div>`;
+  } else {
+    $("sstatus").innerHTML = sim;  // строку сводки не показываем — только подсказки «Похожие компоненты», если есть
+  }
+  // Ищем по цвету, а часть макетов загружена до появления цветов — в них такие объекты не найдутся.
+  const noColor = found.files.filter((f) => !f.colors);
+  if (found.color && noColor.length) {
+    const fix = `Загрузите их заново в <a href="/settings">Настройках</a> — кнопка «Загрузить все заново».`;
+    const text = noColor.length === found.files.length
+      ? `Цветов пока нет ни в одном макете — они загружены до появления поиска по цвету. ${fix}`
+      : `Цвета есть у ${found.files.length - noColor.length} из ${found.files.length} макетов. `
+        + (noColor.length <= 5 ? noColor.map((f) => "«" + esc(f.name) + "»").join(", ") : `Остальные ${noColor.length}`)
+        + ` загружены до появления поиска по цвету — в них совпадения не найдутся. ${fix}`;
+    $("sstatus").insertAdjacentHTML("afterbegin", `<div class="block warn">${text}</div>`);
+  }
+  document.querySelectorAll(".chip[data-q]").forEach((c) => c.addEventListener("click", () => { activeFilters = {}; groupPages = {}; runSearch(c.dataset.q, lastSize); }));
+
+  tipItems = [];
+  hideTip();
+  renderFacets({ facets });
+  $("sresults").innerHTML = shown.map((g, k) => section(g.id, g.title, g.block, found.q, k === 0)).join("");
+  document.querySelectorAll(".copy[data-g]").forEach((b) => b.addEventListener("click", () => copyGroup(b)));
+  lastComponents = found.components.map((c) => `«${c.name}»`).join(", ");
+  document.querySelectorAll(".pg[data-p]").forEach((b) => b.addEventListener("click", () => {
+    groupPages[b.dataset.g] = +b.dataset.p;
+    render();
+    const h = document.getElementById("g-" + b.dataset.g);
+    if (h) h.scrollIntoView({ block: "start" });
+  }));
+  document.querySelectorAll(".pgs").forEach((b) => b.addEventListener("click", () => {
+    pageSize = +b.dataset.n;
+    try { localStorage.setItem("pageSize", String(pageSize)); } catch {}
+    groupPages = {};
+    render();
+  }));
+  saveState();
+  found.renderMs = Math.round(performance.now() - t0);
+}
+
+// Разбор компактного ответа сервера: строки передаются один раз, объекты ссылаются на них.
+function unpack(r) {
+  const S = r.s, G = r.groups.map((g) => g.key), F = r.files;
+  GROUP_TITLE = Object.fromEntries(r.groups.map((g) => [g.key, g.title]));
+  GROUP_RANK = Object.fromEntries(r.groups.map((g, n) => [g.title, n]));
+  const str = (i) => (i < 0 ? null : S[i]);
+  return {
+    q: r.q, w: r.w, h: r.h, color: r.color, tol: r.tol || 0, alpha: r.alpha ?? null, ms: r.ms, components: r.components, similar: r.similar, groups: r.groups, files: F,
+    items: r.items.map(([g, f, id, name, page, variant, hidden, exact, text, type, comp, fill, fillA, fillSrc, stroke, strokeA, strokeSrc]) => ({
+      g: G[g], f: F[f].id, fileKey: F[f].key, file: F[f].name, id, name: str(name), page: str(page) || "",
+      variant: str(variant), hidden: !!hidden, exact: exact === 2 ? undefined : !!exact, text: str(text), type: str(type),
+      comp: comp == null ? null : str(comp),
+      fill: fill == null ? null : str(fill), fillA, fillSrc: fillSrc == null ? null : str(fillSrc),
+      stroke: stroke == null ? null : str(stroke), strokeA, strokeSrc: strokeSrc == null ? null : str(strokeSrc),
+    })),
+  };
+}
+
+// Поиск на сервере — только по «Найти». Новый поиск или правка текста отменяют текущий.
+let searchCtl = null;
+function stopSearch(note) {
+  if (!searchCtl) return;
+  searchCtl.abort();
+  searchCtl = null;
+  setBusy(false);
+  if (note) $("sstatus").innerHTML = `<div class="block warn">${note}</div>`;
+}
+function setBusy(on) {
+  $("find").disabled = on;
+  $("find").classList.toggle("loading", on);
+  on ? $("find").setAttribute("aria-busy", "true") : $("find").removeAttribute("aria-busy");
+}
+async function runSearch(q, size) {
+  stopSearch();
+  size = size || { w: readSize("w"), h: readSize("h"), c: readColor() || null, tol: colorTol, alpha: colorAlpha };
+  size.tol = size.c ? size.tol || 0 : 0;
+  size.alpha = size.c && size.alpha != null ? size.alpha : null;
+  colorTol = size.tol; colorAlpha = size.alpha;
+  $("q").value = q;
+  $("w").value = size.w ?? "";
+  $("h").value = size.h ?? "";
+  $("c").value = size.c ? "#" + size.c : "";
+  syncClear(); syncColor();
+  lastQ = q;
+  lastSize = size;
+  const ctl = searchCtl = new AbortController();
+  setBusy(true);
+  const started = performance.now();
+  let r;
+  try {
+    r = await (await fetch(API + "/api/exp/find", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ q, w: size.w, h: size.h, color: size.c || null, tol: size.tol, alpha: size.alpha }), signal: ctl.signal,
+    })).json();
+  } catch (e) {
+    if (e.name === "AbortError") return;  // отменили — новый поиск или правка текста
+    if (searchCtl === ctl) { searchCtl = null; setBusy(false); }
+    $("sstatus").innerHTML = `<div class="block err">Сервер не отвечает.</div>`;
+    return;
+  }
+  if (searchCtl !== ctl) return;  // пришёл ответ на устаревший поиск
+  searchCtl = null;
+  setBusy(false);
+  if (r.status === "error") {
+    found = null;
+    $("sstatus").innerHTML = `<div class="block err">${esc(r.message)}</div>`;
+    for (const id of ["sresults", "ftabs", "facets", "active"]) $(id).innerHTML = "";
+    $("layout").classList.add("no-side");
+    return;
+  }
+  try {
+    found = unpack(r);
+    applyUrlProps();
+    found.timing = `найдено за ${sec((performance.now() - started) / 1000)}`;
+    render();
+  } catch (e) {
+    console.error("Ошибка отображения результатов поиска", e);
+    $("sstatus").innerHTML = `<div class="block err">Не удалось показать результаты: ошибка на странице. Обновите страницу; если повторится — подробности в консоли браузера.</div>`;
+  }
+}
+// Кнопка «наверх»: видна, когда прокрутили ниже вкладок; возвращает к вкладкам и фильтрам.
+const topTarget = () => ($("ftabs").innerHTML ? $("ftabs") : $("layout"));
+function updateToTop() {
+  const y = topTarget().getBoundingClientRect().top + scrollY;
+  $("toTop").hidden = !found || scrollY < y + 200;
+}
+addEventListener("scroll", updateToTop, { passive: true });
+// Своя прокрутка: всегда ~0,4 с на любое расстояние (встроенная «smooth» медленнее на длинных страницах).
+function scrollFast(to, ms = 400) {
+  const from = scrollY, dist = to - from;
+  if (!dist) return;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return scrollTo(0, to);
+  const start = performance.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3);  // быстро в начале, мягко в конце
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / ms);
+    scrollTo(0, from + dist * ease(t));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+$("toTop").addEventListener("click", () => {
+  const y = topTarget().getBoundingClientRect().top + scrollY - 16;
+  scrollFast(Math.max(0, y));
+});
+
+$("searchForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const c = readColor();
+  if (c === undefined) { syncColor(); $("c").focus(); return; }  // цвет введён неверно — поле подсвечено
+  const q = $("q").value.trim(), size = { w: readSize("w"), h: readSize("h"), c, tol: c ? colorTol : 0, alpha: c ? colorAlpha : null };
+  if (!q && size.w == null && size.h == null && !c) { $("q").focus(); return; }
+  groupPages = {};
+  if (q !== lastQ || size.w !== lastSize.w || size.h !== lastSize.h || size.c !== lastSize.c || size.tol !== lastSize.tol || size.alpha !== lastSize.alpha) activeFilters = {};
+  runSearch(q, size);
+});
+// Крестик в поле размера: виден, когда что-то введено; очищает поле.
+function syncClear() { document.querySelectorAll(".clr").forEach((b) => { b.hidden = $(b.dataset.for).value === ""; }); }
+for (const id of ["w", "h", "c"]) $(id).addEventListener("input", syncClear);
+$("c").addEventListener("input", syncColor);
+document.querySelectorAll(".clr").forEach((b) => b.addEventListener("click", () => {
+  const inp = $(b.dataset.for);
+  inp.value = "";
+  if (b.dataset.for === "c") { colorTol = 0; colorAlpha = null; }
+  syncClear(); syncColor();
+  inp.focus();
+}));
+// Правка размера, как и текста, останавливает идущий поиск.
+for (const id of ["w", "h", "c"]) $(id).addEventListener("input", () => stopSearch("Поиск остановлен — нажмите «Найти», когда допишете запрос."));
+// Начали менять текст, пока идёт поиск, — останавливаем его.
+$("q").addEventListener("input", () => stopSearch("Поиск остановлен — нажмите «Найти», когда допишете запрос."));
+$("hideHidden").addEventListener("change", () => { groupPages = {}; render(); });
+// Галочки в фильтрах по свойствам из ссылки. Имя свойства и значение сравниваются без учёта
+// регистра и крайних пробелов; «_» в имени из ссылки равно пробелу («Icon_left» → «Icon left»).
+// Чего нет среди найденного — пропускается молча, чтобы не получить пустую выдачу.
+let urlProps = null;
+function applyUrlProps() {
+  if (!urlProps || !found) return;
+  const norm = (x) => String(x).trim().toLowerCase();
+  const normName = (x) => norm(x).replace(/[_\s]+/g, " ");
+  const values = new Map();  // ключ фильтра → множество значений в результатах
+  for (const it of found.items) for (const [k, v] of Object.entries(facetValues(it))) {
+    if (!k.startsWith("prop:")) continue;
+    if (!values.has(k)) values.set(k, new Set());
+    values.get(k).add(v);
+  }
+  const skipped = [];
+  for (const [name, wanted] of Object.entries(urlProps)) {
+    const key = [...values.keys()].find((k) => normName(k.slice(5)) === normName(name));
+    const picked = key ? wanted.map((w) => [...values.get(key)].find((v) => norm(v) === norm(w))).filter(Boolean) : [];
+    if (picked.length) activeFilters[key] = [...new Set(picked)];
+    else skipped.push(`${name.replace(/_/g, " ")} = ${wanted.join(", ")}`);
+  }
+  if (skipped.length) console.info("Свойства из ссылки не найдены среди результатов и пропущены:", skipped);
+  urlProps = null;
+}
+// Поиск из ссылки: /?q=Primary%20Button (необязательно &w=56&h=56&color=FF3366&tol=10) — так страницу
+// открывает плагин Figma по кнопке. Запрос из ссылки важнее прежнего поиска этой вкладки.
+function searchFromUrl() {
+  const p = new URLSearchParams(location.search);
+  const num = (k) => { const v = parseFloat(String(p.get(k) || "").replace(",", ".")); return Number.isFinite(v) && v >= 0 ? v : null; };
+  let c = (p.get("color") || "").trim().replace(/^#/, "").toUpperCase();
+  if (/^[0-9A-F]{3}$/.test(c)) c = c.replace(/./g, "$&$&");
+  c = /^[0-9A-F]{6}/.test(c) ? c.slice(0, 6) : null;
+  const q = (p.get("q") || "").trim(), w = num("w"), h = num("h");
+  if (!q && w == null && h == null && !c) return false;
+  // Свойства варианта: &prop_Size=B%2048px&prop_Color=Ghost (несколько значений одного свойства —
+  // повтором параметра: &prop_Color=Ghost&prop_Color=Pink). Галочки ставятся после поиска (applyUrlProps).
+  urlProps = {};
+  for (const [k, v] of p) {
+    if (!k.startsWith("prop_") || !v.trim()) continue;
+    (urlProps[k.slice(5)] = urlProps[k.slice(5)] || []).push(v);
+  }
+  history.replaceState(null, "", location.pathname);  // адрес чистый: обновление страницы не повторяет запрос из плагина
+  currentFile = null; groupPages = {}; activeFilters = {};
+  const a = num("alpha");
+  runSearch(q, { w, h, c, tol: c ? Math.min(100, num("tol") || 0) : 0, alpha: c && a != null ? Math.min(100, Math.round(a)) : null });
+  return true;
+}
+// Вернулись на страницу — показываем прежний поиск.
+try {
+  const st = JSON.parse(sessionStorage.getItem("search") || "null");
+  if (searchFromUrl()) {}
+  else if (st && (st.q || st.w != null || st.h != null || st.c)) {
+    currentFile = st.file || null; groupPages = st.pages || {}; activeFilters = st.filters || {};
+    runSearch(st.q || "", { w: st.w ?? null, h: st.h ?? null, c: st.c || null, tol: st.tol || 0, alpha: st.alpha ?? null });
+  }
+} catch {}
+
+// --- Пикер цвета ---
+// HSV: квадрат — насыщенность (вправо) и яркость (вверх), ползунок — оттенок.
+const cp = { h: 0, s: 0, v: 0 };
+function hsvToHex(h, s, v) {
+  const f = (n) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)); };
+  return [f(5), f(3), f(1)].map((x) => Math.round(x * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+function hexToHsv(hex) {
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d) h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return { h: (h * 60 + 360) % 360, s: max ? d / max : 0, v: max };
+}
+// Lab — так же, как на сервере: отклонение в % ≈ насколько глаз различает цвета (100 — чёрный и белый).
+function hexToLab(hex) {
+  const lin = (c) => (c /= 255, c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const [r, g, b] = [0, 2, 4].map((i) => lin(parseInt(hex.slice(i, i + 2), 16)));
+  const f = (t) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const fx = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047), fy = f(r * 0.2126 + g * 0.7152 + b * 0.0722);
+  const fz = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
+  return [116 * fy - 16, 500 * (fx - fy), 200 * (fy - fz)];
+}
+function labToHex([L, a, bb]) {
+  const fy = (L + 16) / 116, fx = fy + a / 500, fz = fy - bb / 200;
+  const inv = (t) => (t ** 3 > 0.008856 ? t ** 3 : (t - 16 / 116) / 7.787);
+  const x = inv(fx) * 0.95047, y = inv(fy), z = inv(fz) * 1.08883;
+  const g = (c) => { c = Math.max(0, Math.min(1, c)); return Math.round((c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055) * 255); };
+  return [g(x * 3.2406 - y * 1.5372 - z * 0.4986), g(-x * 0.9689 + y * 1.8758 + z * 0.0415), g(x * 0.0557 - y * 0.204 + z * 1.057)]
+    .map((c) => c.toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+const cpHexNow = () => hsvToHex(cp.h, cp.s, cp.v);
+function paintPicker(skipHex) {
+  const hex = cpHexNow();
+  $("sv").style.setProperty("--hue", `hsl(${cp.h} 100% 50%)`);
+  $("svDot").style.left = cp.s * 100 + "%";
+  $("svDot").style.top = (1 - cp.v) * 100 + "%";
+  $("svDot").style.background = "#" + hex;
+  $("hue").value = Math.round(cp.h);
+  const a = +$("alpha").value, alpha = a < 0 ? null : a;
+  $("cpPrev").style.background = `linear-gradient(#${hex}${alphaHex(alpha)}, #${hex}${alphaHex(alpha)}), ${CHECKER}`;
+  if (!skipHex) $("cpHex").value = "#" + hex;
+  $("alpha").style.setProperty("--alpha-bg", `linear-gradient(to right, #${hex}00, #${hex}), ${CHECKER}`);
+  $("alpha").classList.toggle("any", alpha == null);
+  $("alphaVal").textContent = alpha == null ? "Любая" : alpha + "%";
+  $("alphaHint").textContent = alpha == null ? "Прозрачность цвета не важна. Сдвиньте ползунок, чтобы искать только с нужной."
+    : `Как opacity в Figma: 100% — непрозрачный. Найдутся цвета с прозрачностью ${Math.max(0, alpha - 2)}–${Math.min(100, alpha + 2)}%.`;
+  const t = +$("tol").value;
+  $("tolVal").textContent = t ? `±${t}%` : "0%";
+  $("tolHint").textContent = !t ? "Только точно этот цвет."
+    : t <= 5 ? "Почти тот же цвет: незаметные на глаз отличия."
+    : t <= 15 ? "Близкие оттенки: чуть светлее, темнее или насыщеннее."
+    : t <= 30 ? "Заметно разные оттенки того же цвета."
+    : "Широкий диапазон — в результатах будут и другие цвета.";
+  // Полоска примеров: цвета ровно на границе отклонения (светлее/темнее, теплее/холоднее)
+  const L = hexToLab(hex);
+  const dirs = [[-1, 0, 0], [0, -1, 0], [0, 0, -1], null, [0, 0, 1], [0, 1, 0], [1, 0, 0]];
+  $("cpRange").innerHTML = t ? dirs.map((d) => `<i style="background:#${d ? labToHex(L.map((v, k) => v + d[k] * t)) : hex}"></i>`).join("") : "";
+}
+function openPicker() {
+  const c = readColor();
+  Object.assign(cp, hexToHsv(c || "000000"));
+  $("tol").value = colorTol;
+  $("alpha").value = colorAlpha ?? -5;
+  paintPicker();
+  $("cpop").hidden = false;
+  $("pick").setAttribute("aria-expanded", "true");
+  placePicker();
+}
+function placePicker() {
+  if ($("cpop").hidden) return;
+  const r = $("cbox").getBoundingClientRect(), w = $("cpop").offsetWidth, h = $("cpop").offsetHeight;
+  $("cpop").style.left = Math.max(8, Math.min(r.right - w, innerWidth - w - 8)) + "px";
+  $("cpop").style.top = (r.bottom + 8 + h > innerHeight && r.top - h - 8 > 0 ? r.top - h - 8 : r.bottom + 8) + "px";
+}
+function closePicker() {
+  $("cpop").hidden = true;
+  $("pick").setAttribute("aria-expanded", "false");
+}
+$("pick").addEventListener("click", () => ($("cpop").hidden ? openPicker() : closePicker()));
+$("ctol").addEventListener("click", openPicker);
+addEventListener("resize", placePicker);
+addEventListener("scroll", placePicker, { passive: true });
+document.addEventListener("mousedown", (e) => {
+  if (!$("cpop").hidden && !e.target.closest("#cpop, #pick, #ctol")) closePicker();
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("cpop").hidden) { closePicker(); $("pick").focus(); } });
+// Квадрат: тянем мышью
+function svAt(e) {
+  const r = $("sv").getBoundingClientRect();
+  cp.s = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+  cp.v = Math.max(0, Math.min(1, 1 - (e.clientY - r.top) / r.height));
+  paintPicker();
+}
+$("sv").addEventListener("pointerdown", (e) => { $("sv").setPointerCapture(e.pointerId); svAt(e); });
+$("sv").addEventListener("pointermove", (e) => { if ($("sv").hasPointerCapture(e.pointerId)) svAt(e); });
+$("hue").addEventListener("input", () => { cp.h = +$("hue").value; paintPicker(); });
+$("tol").addEventListener("input", () => paintPicker());
+$("alpha").addEventListener("input", () => paintPicker());
+$("cpHex").addEventListener("input", () => {
+  let v = $("cpHex").value.trim().replace(/^#/, "");
+  if (/^[0-9a-f]{3}$/i.test(v)) v = v.replace(/./g, "$&$&");
+  if (/^[0-9a-f]{6}$/i.test(v)) { Object.assign(cp, hexToHsv(v.toUpperCase())); paintPicker(true); }
+});
+// Пипетка — цвет с любого места экрана (Chrome, Edge); где браузер не умеет — кнопки нет
+if (!("EyeDropper" in window)) $("eyedrop").hidden = true;
+$("eyedrop").addEventListener("click", async () => {
+  try {
+    const { sRGBHex } = await new EyeDropper().open();
+    Object.assign(cp, hexToHsv(sRGBHex.replace("#", "").slice(0, 6).toUpperCase()));
+    paintPicker();
+  } catch {}  // отменили Esc
+});
+$("cpApply").addEventListener("click", () => {
+  $("c").value = "#" + cpHexNow();
+  colorTol = +$("tol").value;
+  colorAlpha = +$("alpha").value < 0 ? null : +$("alpha").value;
+  syncClear(); syncColor();
+  stopSearch("Поиск остановлен — нажмите «Найти», когда допишете запрос.");
+  closePicker();
+  $("find").focus();
+});
+$("cpReset").addEventListener("click", () => {
+  $("c").value = ""; colorTol = 0; colorAlpha = null;
+  syncClear(); syncColor();
+  closePicker();
+});
+
+beat();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# окружение и кэш
+.venv/
+__pycache__/
+.pytest_cache/
+.DS_Store
+
+# локальные данные: токен и ссылки на макеты, база
+config.json
+config.json.tmp
+db/
+
+# настройки Claude Code этой машины
+.claude/
